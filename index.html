@@ -335,6 +335,10 @@ input, select { font-family: inherit; }
   border-radius: 999px; font-size: 0.84rem; font-weight: 600; z-index: 200; opacity: 0; transition: 0.25s; pointer-events: none; box-shadow: var(--shadow); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .muted { color: var(--text-muted); }
+.shop-section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin: 0.8rem 0 0.1rem; }
+.avoid-item { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.82rem; color: var(--text-muted); padding: 0.4rem 0; border-bottom: 1px solid var(--border-soft); }
+.avoid-item:last-child { border-bottom: none; }
+.avoid-item .ax { color: var(--danger); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -435,6 +439,25 @@ input, select { font-family: inherit; }
     </div>
   </section>
 
+  <!-- ============ SHOP ============ -->
+  <section class="view" id="view-shop">
+    <div class="card">
+      <div class="card-title">Weekly Staples <span class="tac" id="shopReset">Reset checks</span></div>
+      <p class="muted" style="font-size:0.76rem;margin:-0.5rem 0 0.5rem">Check off as you shop. Every item here pulls a protocol lever.</p>
+      <div id="shopStaples"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Build From Meal Plan</div>
+      <p class="muted" style="font-size:0.76rem;margin:-0.5rem 0 0.5rem">Pick the days you'll cook — I'll list every ingredient.</p>
+      <div class="day-pills" id="shopDayPills"></div>
+      <div id="shopGenerated"></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--danger)">Keep Out Of The House</div>
+      <div id="shopAvoid"></div>
+    </div>
+  </section>
+
   <!-- ============ REFERENCE ============ -->
   <section class="view" id="view-ref">
     <div class="ref-tabs" id="refTabs"></div>
@@ -448,6 +471,7 @@ input, select { font-family: inherit; }
   <button data-view="today" class="active"><span class="ti">📋</span>Today</button>
   <button data-view="trends"><span class="ti">📈</span>Trends</button>
   <button data-view="plan"><span class="ti">🍽</span>Plan</button>
+  <button data-view="shop"><span class="ti">🛒</span>Shop</button>
   <button data-view="ref"><span class="ti">📖</span>Reference</button>
 </nav>
 
@@ -831,6 +855,7 @@ const DEFAULT_STATE = {
   dailyLogs: {},      // date -> { dayType, meals:{slot:[{id,foodId,servings}]}, weight, greenTea, coolingPrep }
   bodyComp: {},       // date -> { waist, neck }
   coachDismissed: {}, // target -> dateDismissed
+  shopping: { staples:{}, days:[], gen:{} }, // grocery list state
   _seq: 1,
   updatedAt: 0
 };
@@ -1292,6 +1317,62 @@ function loadPlanIntoToday(){
   toast(`Loaded ${planDay} into today ✓`);
 }
 
+/* ---------- SHOPPING LIST ---------- */
+const SHOP_STAPLES = [
+  { section:'Proteins', items:['Salmon — fillets + canned','Sardines','Mackerel / trout','Cod / tilapia','Canned tuna','Chicken breast','Turkey breast','93% ground turkey','Eggs + carton egg whites','Tofu / tempeh / edamame','Low-fat Greek yogurt','Low-fat cottage cheese','Whey + casein powder','Lean sirloin (2 meals/wk only)'] },
+  { section:'RS Starches', items:['Raw rolled oats','Green-TIPPED bananas','Bob\'s Unmodified Potato Starch','White rice','Yukon potatoes','Sweet potatoes','Canned chickpeas','Cannellini beans','Black / kidney / pinto beans','Lentils','Quinoa / barley','Sourdough or Ezekiel bread'] },
+  { section:'Fats / Nuts / Seeds', items:['Extra-virgin olive oil','Avocado oil','Walnuts','Almonds / pistachios / pecans','Ground flaxseed','Chia seeds','Hemp seeds','Natural almond / peanut butter','Tahini','Avocados'] },
+  { section:'Vegetables', items:['Spinach / arugula / mixed greens','Kale','Bok choy','Broccoli / cauliflower','Brussels sprouts','Asparagus / green beans','Zucchini / bell peppers','Carrots / cucumber','Mushrooms','Ginger'] },
+  { section:'Fruit', items:['Berries (blue/straw/rasp)','Apples / pears','Kiwi / grapes','Melon / peach / cherries'] },
+  { section:'Pantry / Drinks', items:['Green tea','Earl Grey','Mustard','Low-sodium soy sauce','Balsamic vinegar','Non-spicy herbs & spices'] }
+];
+const SHOP_AVOID = [
+  'Grapefruit + grapefruit juice (statin interaction)',
+  'Tomatoes / sauce, citrus, hot sauce, chocolate, mint (reflux)',
+  'Fried foods of any kind',
+  'Butter, whole milk, cream cheese, fatty cheese, coconut oil',
+  'Ribeye / 80-20 beef, ice cream',
+  'Bacon, sausage, hot dogs, cured deli meats (nitrates)',
+  'Fruit juice, soda, sweetened drinks',
+  'Chips, fries, frozen pizza — and no alcohol'
+];
+const CAT_SECTION = { protein:'Proteins', rs:'RS Starches', grains:'Grains & Breads', dairy:'Dairy & Eggs', produce:'Vegetables', fruit:'Fruit', fat:'Fats / Nuts', other:'Other' };
+const GEN_SECTION_ORDER = ['Proteins','RS Starches','Grains & Breads','Dairy & Eggs','Vegetables','Fruit','Fats / Nuts','Other'];
+
+function getShop(){
+  if(!state.shopping) state.shopping={staples:{},days:[],gen:{}};
+  const s=state.shopping; if(!s.staples)s.staples={}; if(!s.days)s.days=[]; if(!s.gen)s.gen={};
+  return s;
+}
+function renderShop(){
+  const sh=getShop();
+  document.getElementById('shopStaples').innerHTML = SHOP_STAPLES.map(sec=>{
+    const rows = sec.items.map(it=>`<div class="check-row ${sh.staples[it]?'done':''}" data-key="${it}"><div class="check-box">✓</div><div class="cr-text">${it}</div></div>`).join('');
+    return `<div class="shop-section-title">${sec.section}</div>${rows}`;
+  }).join('');
+  document.getElementById('shopDayPills').innerHTML = PLAN_DAY_ORDER.map(d=>
+    `<button class="day-pill ${sh.days.includes(d)?'active':''}" data-day="${d}">${d.slice(0,3)}</button>`).join('');
+  const gen=document.getElementById('shopGenerated');
+  if(!sh.days.length){
+    gen.innerHTML=`<p class="muted" style="font-size:0.8rem">Select day(s) above and I'll list every ingredient you need.</p>`;
+  } else {
+    const counts={};
+    sh.days.forEach(d=>{ const p=DAY_PLAN[d]; if(!p)return; Object.values(p).forEach(arr=>arr.forEach(id=>{ counts[id]=(counts[id]||0)+1; })); });
+    const bySec={};
+    Object.keys(counts).forEach(id=>{ const f=FOOD_MAP[id]; if(!f)return; const sec=CAT_SECTION[f.cat]||'Other'; (bySec[sec]=bySec[sec]||[]).push({id,name:f.name,serv:f.serv,count:counts[id]}); });
+    gen.innerHTML = GEN_SECTION_ORDER.filter(s=>bySec[s]).map(sec=>{
+      const rows=bySec[sec].sort((a,b)=>a.name.localeCompare(b.name)).map(o=>
+        `<div class="check-row ${sh.gen[o.id]?'done':''}" data-gid="${o.id}"><div class="check-box">✓</div><div class="cr-text">${o.name} <span class="muted" style="font-size:0.72rem">· ${o.serv}${o.count>1?` ×${o.count}`:''}</span></div></div>`).join('');
+      return `<div class="shop-section-title">${sec}</div>${rows}`;
+    }).join('');
+  }
+  document.getElementById('shopAvoid').innerHTML = SHOP_AVOID.map(a=>`<div class="avoid-item"><span class="ax">✕</span><span>${a}</span></div>`).join('');
+}
+function toggleStaple(key){ const sh=getShop(); sh.staples[key]=!sh.staples[key]; saveState(); renderShop(); }
+function toggleShopDay(d){ const sh=getShop(); const i=sh.days.indexOf(d); if(i>=0) sh.days.splice(i,1); else sh.days.push(d); saveState(); renderShop(); }
+function toggleGen(id){ const sh=getShop(); sh.gen[id]=!sh.gen[id]; saveState(); renderShop(); }
+function resetShopChecks(){ const sh=getShop(); sh.staples={}; sh.gen={}; saveState(); renderShop(); toast('Checks cleared'); }
+
 /* ---------- REFERENCE ---------- */
 function renderRef(){
   document.getElementById('refTabs').innerHTML = REF_TABS.map(t=>
@@ -1384,6 +1465,7 @@ function switchView(v){
   window.scrollTo(0,0);
   if(v==='trends'){ renderRamp(); renderWeight(); renderBodyComp(); }
   if(v==='plan') renderPlan();
+  if(v==='shop') renderShop();
   if(v==='ref') renderRef();
 }
 
@@ -1452,6 +1534,10 @@ function bindEvents(){
   document.getElementById('bcSave').onclick=()=>{ const wa=parseFloat(document.getElementById('waistInput').value), ne=parseFloat(document.getElementById('neckInput').value);
     if(!wa||!ne){ toast('Enter waist & neck'); return; } state.bodyComp[currentDate]={waist:wa,neck:ne}; saveState(); renderBodyComp(); toast('Measurement saved ✓'); };
   document.getElementById('planLoadBtn').onclick=loadPlanIntoToday;
+  document.getElementById('shopReset').onclick=resetShopChecks;
+  document.getElementById('shopStaples').addEventListener('click', e=>{ const r=e.target.closest('[data-key]'); if(r) toggleStaple(r.dataset.key); });
+  document.getElementById('shopDayPills').addEventListener('click', e=>{ const b=e.target.closest('[data-day]'); if(b) toggleShopDay(b.dataset.day); });
+  document.getElementById('shopGenerated').addEventListener('click', e=>{ const r=e.target.closest('[data-gid]'); if(r) toggleGen(r.dataset.gid); });
   window.addEventListener('resize', ()=>{ if(document.getElementById('view-trends').classList.contains('active')) renderWeightChart(); });
 }
 
