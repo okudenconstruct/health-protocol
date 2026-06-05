@@ -339,6 +339,16 @@ input, select { font-family: inherit; }
 .avoid-item { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.82rem; color: var(--text-muted); padding: 0.4rem 0; border-bottom: 1px solid var(--border-soft); }
 .avoid-item:last-child { border-bottom: none; }
 .avoid-item .ax { color: var(--danger); font-weight: 700; }
+.plan-total { display: flex; justify-content: space-between; align-items: center; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); font-weight: 700; font-size: 0.85rem; }
+.fi-del { width: 34px; height: 34px; border-radius: 9px; background: var(--bg-input); border: 1px solid var(--border-soft); color: var(--text-dim); font-size: 0.9rem; flex-shrink: 0; }
+.cf-field { margin-bottom: 0.6rem; }
+.cf-field label { display: block; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 3px; }
+.cf-field input, .cf-field select { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem 0.7rem; color: var(--text); font-family: var(--mono); }
+.cf-field input:focus, .cf-field select:focus { outline: none; border-color: var(--accent); }
+.cf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.cf-flags { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 0.2rem; }
+.cf-flags label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; color: var(--text); }
+.cf-flags input { width: auto; }
 </style>
 </head>
 <body>
@@ -432,6 +442,10 @@ input, select { font-family: inherit; }
 
   <!-- ============ MEAL PLAN ============ -->
   <section class="view" id="view-plan">
+    <div class="daytype-toggle" id="planModeToggle" style="margin-bottom:0.8rem">
+      <button data-pm="training">🏋 Training day</button>
+      <button data-pm="rest">😴 Rest day</button>
+    </div>
     <div class="day-pills" id="dayPills"></div>
     <div class="card">
       <div class="card-title">7-Day Plan <span class="tac" id="planLoadBtn">⬇ Load into today</span></div>
@@ -480,6 +494,7 @@ input, select { font-family: inherit; }
   <div class="modal">
     <div class="modal-head"><h2 id="foodModalTitle">Add to meal</h2><button class="icon-btn" id="foodModalClose">✕</button></div>
     <div class="modal-search"><input type="text" id="foodSearch" placeholder="Search foods…" /></div>
+    <button id="createFoodBtn" class="btn-add" style="margin:0 1rem 0.6rem; width:calc(100% - 2rem)">➕ Create custom food</button>
     <div class="cat-tabs" id="catTabs"></div>
     <div class="food-list" id="foodList"></div>
   </div>
@@ -517,6 +532,49 @@ input, select { font-family: inherit; }
         <button class="btn-primary" id="settingsSave" style="flex:1">Save</button>
         <button class="btn-tmpl" id="exportData">Export JSON</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM FOOD CREATOR -->
+<div class="modal-backdrop" id="customModal">
+  <div class="modal">
+    <div class="modal-head"><h2>Create custom food</h2><button class="icon-btn" id="customClose">✕</button></div>
+    <div style="padding:0 1rem 1.5rem; overflow-y:auto">
+      <div class="cf-field"><label>Name</label><input id="cfName" type="text" placeholder="e.g. Quest bar" /></div>
+      <div class="cf-field"><label>Serving</label><input id="cfServ" type="text" placeholder="e.g. 1 bar" /></div>
+      <div class="cf-grid">
+        <div class="cf-field"><label>Calories</label><input id="cfCal" type="number" inputmode="decimal" /></div>
+        <div class="cf-field"><label>Protein (g)</label><input id="cfP" type="number" inputmode="decimal" /></div>
+        <div class="cf-field"><label>Carbs (g)</label><input id="cfC" type="number" inputmode="decimal" /></div>
+        <div class="cf-field"><label>Fat (g)</label><input id="cfF" type="number" inputmode="decimal" /></div>
+        <div class="cf-field"><label>Sat fat (g)</label><input id="cfSat" type="number" inputmode="decimal" /></div>
+        <div class="cf-field"><label>Fiber (g)</label><input id="cfFib" type="number" inputmode="decimal" /></div>
+        <div class="cf-field"><label>Resistant starch (g)</label><input id="cfRs" type="number" inputmode="decimal" /></div>
+        <div class="cf-field"><label>Category</label>
+          <select id="cfCat">
+            <option value="protein">Protein</option>
+            <option value="rs">RS Starch</option>
+            <option value="grains">Grains</option>
+            <option value="dairy">Dairy/Egg</option>
+            <option value="produce">Vegetable</option>
+            <option value="fruit">Fruit</option>
+            <option value="fat">Fats/Nuts</option>
+            <option value="other" selected>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="cf-field" style="margin-top:0.5rem"><label>Flags (optional)</label>
+        <div class="cf-flags">
+          <label><input type="checkbox" id="cfReflux" /> Reflux</label>
+          <label><input type="checkbox" id="cfStatin" /> Statin</label>
+          <label><input type="checkbox" id="cfSatflag" /> High sat fat</label>
+          <label><input type="checkbox" id="cfProcessed" /> Cured/processed</label>
+          <label><input type="checkbox" id="cfFish" /> Counts as fish</label>
+          <label><input type="checkbox" id="cfRed" /> Red meat</label>
+        </div>
+      </div>
+      <button class="btn-primary" id="cfSave" style="width:100%;margin-top:1rem">Save &amp; add to meal</button>
     </div>
   </div>
 </div>
@@ -756,7 +814,13 @@ const FOODS = [
   { id:'mortadella', name:'Mortadella', cat:'flagged', serv:'1 oz', cal:88, p:4, c:0.5, f:7, sat:3, fib:0, rs:0, flags:['satfat','processed'] },
   { id:'corned_beef', name:'Corned beef', cat:'flagged', serv:'2 oz', cal:120, p:12, c:0, f:7, sat:3, fib:0, rs:0, redMeat:true, flags:['satfat','processed'] }
 ];
-const FOOD_MAP = Object.fromEntries(FOODS.map(f => [f.id, f]));
+let ALL_FOODS = FOODS.slice();
+let FOOD_MAP = Object.fromEntries(ALL_FOODS.map(f => [f.id, f]));
+/* Merge user-created foods (from state) into the lookup. Call after load/sync/edit. */
+function rebuildFoods(){
+  ALL_FOODS = FOODS.concat((state && state.customFoods) ? state.customFoods : []);
+  FOOD_MAP = Object.fromEntries(ALL_FOODS.map(f => [f.id, f]));
+}
 
 const CATS = [
   { id:'all', name:'All' },
@@ -768,6 +832,7 @@ const CATS = [
   { id:'fruit', name:'Fruit' },
   { id:'fat', name:'Fats/Nuts' },
   { id:'other', name:'Other' },
+  { id:'custom', name:'★ Mine' },
   { id:'flagged', name:'⚠ Flagged' }
 ];
 
@@ -799,6 +864,18 @@ const MEAL_TEMPLATES = {
   dinner:    [ { name:'Protein + cold starch + veg', items:['chicken_breast','rice_cold_h','potato_cold_h','broccoli','olive_oil'] } ],
   postGym:   [ { name:'Casein', items:['casein'] }, { name:'Egg whites', items:['egg_whites'] } ],
   flex:      [ { name:'RS booster (cold)', items:['potato_starch_2'] } ]
+};
+
+/* Training-day add-ons: extra protocol-friendly fuel (cold starch + olive oil + nuts)
+   tuned so each training day lands ~2250-2330 cal vs the rest-day base. */
+const TRAIN_BOOST = {
+  Monday:    ['rice_cold_h','olive_oil','almonds'],
+  Tuesday:   ['walnuts'],
+  Wednesday: ['rice_cold_h','olive_oil'],
+  Thursday:  ['potato_cold_3q','olive_oil','almonds','walnuts'],
+  Friday:    ['rice_cold_h','walnuts'],
+  Saturday:  ['olive_oil','walnuts'],
+  Sunday:    ['rice_cold_h','walnuts']
 };
 
 /* ---------- REFERENCE CONTENT ---------- */
@@ -856,6 +933,7 @@ const DEFAULT_STATE = {
   bodyComp: {},       // date -> { waist, neck }
   coachDismissed: {}, // target -> dateDismissed
   shopping: { staples:{}, days:[], gen:{} }, // grocery list state
+  customFoods: [], // user-created foods
   _seq: 1,
   updatedAt: 0
 };
@@ -863,7 +941,8 @@ let state = structuredClone(DEFAULT_STATE);
 let currentDate = todayStr();
 let viewDate = currentDate;
 let planDay = DAY_NAMES[new Date().getDay()];
-if(planDay==='Sunday' && !PLAN_DAY_ORDER.includes(planDay)) planDay='Monday';
+if(!PLAN_DAY_ORDER.includes(planDay)) planDay='Monday';
+let planMode = 'training';
 let refTab = 'rs';
 let pickerSlot = null;
 let pickerCat = 'all';
@@ -918,6 +997,7 @@ function applyRemoteState(remote){
   state.settings = Object.assign({}, DEFAULT_STATE.settings, remote.settings||{});
   state._seq = seq;
   localStorage.setItem(LS_KEY, JSON.stringify(state));
+  rebuildFoods();
   renderAll();
   const active=document.querySelector('.view.active');
   if(active){ const v=active.id.replace('view-','');
@@ -1297,24 +1377,37 @@ function renderBodyComp(){
 function renderPlan(){
   document.getElementById('dayPills').innerHTML = PLAN_DAY_ORDER.map(d=>
     `<button class="day-pill ${d===planDay?'active':''}" onclick="setPlanDay('${d}')">${d.slice(0,3)}</button>`).join('');
+  document.querySelectorAll('#planModeToggle button').forEach(b=>b.classList.toggle('on', b.dataset.pm===planMode));
   const plan = DAY_PLAN[planDay] || DAY_PLAN.Monday;
   const slotOrder=[['breakfast','🥣 Breakfast'],['lunch','🥗 Lunch'],['preGym','⚡ Pre-Gym'],['dinner','🍽 Dinner'],['postGym','💪 Post-Gym']];
-  document.getElementById('planContent').innerHTML = slotOrder.map(([sid,label])=>{
-    const ids = plan[sid]||[];
+  const tot={rs:0,p:0,cal:0};
+  const meal=(label,ids,extraStyle)=>{
     let rs=0,p=0,cal=0; ids.forEach(id=>{const f=FOOD_MAP[id]; if(f){rs+=f.rs;p+=f.p;cal+=f.cal;}});
+    tot.rs+=rs; tot.p+=p; tot.cal+=cal;
     const names = ids.map(id=>FOOD_MAP[id]?FOOD_MAP[id].name:id).join(', ');
-    return `<div class="plan-meal"><div class="pm-head"><span>${label}</span>
+    return `<div class="plan-meal"${extraStyle?` style="${extraStyle}"`:''}><div class="pm-head"><span>${label}</span>
       <span class="pm-macros">RS ${rs.toFixed(0)}g · P ${p.toFixed(0)}g · ${cal.toFixed(0)} cal</span></div>
       <div class="pm-items">${names}</div></div>`;
-  }).join('');
+  };
+  let html = slotOrder.map(([sid,label])=> meal(label, plan[sid]||[])).join('');
+  if(planMode==='training' && TRAIN_BOOST[planDay] && TRAIN_BOOST[planDay].length){
+    html += meal('⚡ Training Fuel', TRAIN_BOOST[planDay], 'border-left:3px solid var(--rs);padding-left:0.6rem');
+  }
+  const mt=MACRO_TARGETS[planMode];
+  html += `<div class="plan-total"><span>Day total</span><span class="pm-macros">RS ${tot.rs.toFixed(0)}g · P ${tot.p.toFixed(0)}g · ${tot.cal.toFixed(0)} / ${mt.cal} cal</span></div>`;
+  document.getElementById('planContent').innerHTML = html;
 }
 function setPlanDay(d){ planDay=d; renderPlan(); }
+function setPlanMode(m){ planMode=m; renderPlan(); }
 function loadPlanIntoToday(){
   const plan = DAY_PLAN[planDay]; if(!plan) return;
   const log = getLog(currentDate);
-  Object.keys(plan).forEach(sid=>{ log.meals[sid]=[]; plan[sid].forEach(fid=> log.meals[sid].push({id:state._seq++, foodId:fid, servings:1})); });
+  ['breakfast','lunch','preGym','dinner','postGym','flex'].forEach(s=> log.meals[s]=[]);
+  Object.keys(plan).forEach(sid=>{ plan[sid].forEach(fid=> log.meals[sid].push({id:state._seq++, foodId:fid, servings:1})); });
+  log.dayType = planMode;
+  if(planMode==='training' && TRAIN_BOOST[planDay]){ TRAIN_BOOST[planDay].forEach(fid=> log.meals.flex.push({id:state._seq++, foodId:fid, servings:1})); }
   saveState(); switchView('today'); renderAll();
-  toast(`Loaded ${planDay} into today ✓`);
+  toast(`Loaded ${planDay} · ${planMode} ✓`);
 }
 
 /* ---------- SHOPPING LIST ---------- */
@@ -1399,22 +1492,72 @@ function renderCatTabs(){
 function setPickerCat(c){ pickerCat=c; renderCatTabs(); renderFoodList(document.getElementById('foodSearch').value); }
 function renderFoodList(query){
   const q=(query||'').toLowerCase().trim();
-  const list = FOODS.filter(f=>{
-    if(pickerCat!=='all' && f.cat!==pickerCat) return false;
+  const list = ALL_FOODS.filter(f=>{
+    if(pickerCat==='custom'){ if(!f.custom) return false; }
+    else if(pickerCat!=='all' && f.cat!==pickerCat) return false;
     if(q && !f.name.toLowerCase().includes(q)) return false;
     return true;
   });
-  document.getElementById('foodList').innerHTML = list.map(f=>{
+  let rows = list.map(f=>{
     const rsv = f.rs>0? `<span class="rsv">RS ${f.rs}g</span> · `:'';
+    const star = f.custom? '★ ' : '';
+    const del = f.custom? `<button class="fi-del" onclick="deleteCustomFood('${f.id}')">🗑</button>` : '';
     return `<div class="food-item">
       <div class="fi-main">
-        <div class="fi-name">${f.name} ${entryFlags(f)}</div>
+        <div class="fi-name">${star}${f.name} ${entryFlags(f)}</div>
         <div class="fi-serv">${f.serv}</div>
         <div class="fi-macros">${rsv}${f.cal}cal · P${f.p} C${f.c} F${f.f}</div>
       </div>
-      <button class="fi-add" onclick="pickFood('${f.id}')">+</button>
+      <button class="fi-add" onclick="pickFood('${f.id}')">+</button>${del}
     </div>`;
-  }).join('') || `<p class="muted" style="padding:1rem 0">No foods match.</p>`;
+  }).join('');
+  if(!rows){
+    rows = pickerCat==='custom'
+      ? `<p class="muted" style="padding:1rem 0">No custom foods yet. Tap “Create custom food” above to add one.</p>`
+      : `<p class="muted" style="padding:1rem 0">No foods match.</p>`;
+  }
+  document.getElementById('foodList').innerHTML = rows;
+}
+
+/* ---------- CUSTOM FOOD CREATOR ---------- */
+function openCustomFood(){
+  ['cfName','cfServ','cfCal','cfP','cfC','cfF','cfSat','cfFib','cfRs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cfCat').value='other';
+  ['cfReflux','cfStatin','cfSatflag','cfProcessed','cfFish','cfRed'].forEach(id=>document.getElementById(id).checked=false);
+  document.getElementById('customModal').classList.add('open');
+  setTimeout(()=>document.getElementById('cfName').focus(),100);
+}
+function saveCustomFood(){
+  const name=document.getElementById('cfName').value.trim();
+  if(!name){ toast('Enter a name'); return; }
+  const num=id=>{ const v=parseFloat(document.getElementById(id).value); return isNaN(v)?0:v; };
+  const flags=[];
+  if(document.getElementById('cfReflux').checked) flags.push('reflux');
+  if(document.getElementById('cfStatin').checked) flags.push('statin');
+  if(document.getElementById('cfSatflag').checked) flags.push('satfat');
+  if(document.getElementById('cfProcessed').checked) flags.push('processed');
+  const food={ id:'custom_'+(state._seq++), custom:true, name,
+    cat:document.getElementById('cfCat').value,
+    serv:document.getElementById('cfServ').value.trim()||'1 serving',
+    cal:num('cfCal'), p:num('cfP'), c:num('cfC'), f:num('cfF'), sat:num('cfSat'), fib:num('cfFib'), rs:num('cfRs') };
+  if(flags.length) food.flags=flags;
+  if(document.getElementById('cfFish').checked) food.fish=true;
+  if(document.getElementById('cfRed').checked) food.redMeat=true;
+  if(!state.customFoods) state.customFoods=[];
+  state.customFoods.push(food);
+  rebuildFoods(); saveState();
+  document.getElementById('customModal').classList.remove('open');
+  if(pickerSlot){
+    if(food.flags && food.flags.length){ pendingAdd={slot:pickerSlot, foodId:food.id}; showWarning(food); }
+    else { addFood(currentDate, pickerSlot, food.id); toast(`Added ${name}`); closePicker(); renderAll(); }
+  } else { toast(`Saved ${name}`); }
+  if(document.getElementById('foodModal').classList.contains('open')) renderFoodList(document.getElementById('foodSearch').value);
+}
+function deleteCustomFood(id){
+  state.customFoods=(state.customFoods||[]).filter(f=>f.id!==id);
+  rebuildFoods(); saveState();
+  renderFoodList(document.getElementById('foodSearch').value);
+  toast('Custom food removed');
 }
 function pickFood(foodId){
   const food = FOOD_MAP[foodId]; if(!food) return;
@@ -1538,11 +1681,17 @@ function bindEvents(){
   document.getElementById('shopStaples').addEventListener('click', e=>{ const r=e.target.closest('[data-key]'); if(r) toggleStaple(r.dataset.key); });
   document.getElementById('shopDayPills').addEventListener('click', e=>{ const b=e.target.closest('[data-day]'); if(b) toggleShopDay(b.dataset.day); });
   document.getElementById('shopGenerated').addEventListener('click', e=>{ const r=e.target.closest('[data-gid]'); if(r) toggleGen(r.dataset.gid); });
+  document.getElementById('planModeToggle').addEventListener('click', e=>{ const b=e.target.closest('[data-pm]'); if(b) setPlanMode(b.dataset.pm); });
+  document.getElementById('createFoodBtn').onclick=openCustomFood;
+  document.getElementById('customClose').onclick=()=>document.getElementById('customModal').classList.remove('open');
+  document.getElementById('customModal').addEventListener('click', e=>{ if(e.target.id==='customModal') document.getElementById('customModal').classList.remove('open'); });
+  document.getElementById('cfSave').onclick=saveCustomFood;
   window.addEventListener('resize', ()=>{ if(document.getElementById('view-trends').classList.contains('active')) renderWeightChart(); });
 }
 
 function init(){
   loadState();
+  rebuildFoods();
   currentDate=todayStr(); viewDate=currentDate;
   if(!state.settings.rampLevelStart) state.settings.rampLevelStart=currentDate;
   bindEvents();
