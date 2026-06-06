@@ -812,7 +812,12 @@ const FOODS = [
   { id:'salami', name:'Salami', cat:'flagged', serv:'1 oz', cal:110, p:6, c:0.5, f:9, sat:3.5, fib:0, rs:0, flags:['satfat','processed'] },
   { id:'bologna', name:'Bologna', cat:'flagged', serv:'1 oz', cal:90, p:3, c:1, f:8, sat:3, fib:0, rs:0, flags:['satfat','processed'] },
   { id:'mortadella', name:'Mortadella', cat:'flagged', serv:'1 oz', cal:88, p:4, c:0.5, f:7, sat:3, fib:0, rs:0, flags:['satfat','processed'] },
-  { id:'corned_beef', name:'Corned beef', cat:'flagged', serv:'2 oz', cal:120, p:12, c:0, f:7, sat:3, fib:0, rs:0, redMeat:true, flags:['satfat','processed'] }
+  { id:'corned_beef', name:'Corned beef', cat:'flagged', serv:'2 oz', cal:120, p:12, c:0, f:7, sat:3, fib:0, rs:0, redMeat:true, flags:['satfat','processed'] },
+  // ---- Deli cheeses (full-fat) ----
+  { id:'cheese_american', name:'American cheese', cat:'flagged', serv:'1 slice', cal:60, p:3, c:1, f:5, sat:3, fib:0, rs:0, flags:['satfat','processed'] },
+  { id:'cheese_provolone', name:'Provolone', cat:'flagged', serv:'1 slice', cal:100, p:7, c:0.6, f:7.5, sat:4.8, fib:0, rs:0, flags:['satfat'] },
+  { id:'cheese_muenster', name:'Muenster', cat:'flagged', serv:'1 slice', cal:104, p:7, c:0.3, f:8.5, sat:5.4, fib:0, rs:0, flags:['satfat'] },
+  { id:'cheese_swiss', name:'Swiss cheese', cat:'flagged', serv:'1 slice', cal:106, p:7.5, c:1.5, f:8, sat:5, fib:0, rs:0, flags:['satfat'] }
 ];
 let ALL_FOODS = FOODS.slice();
 let FOOD_MAP = Object.fromEntries(ALL_FOODS.map(f => [f.id, f]));
