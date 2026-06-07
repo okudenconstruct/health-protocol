@@ -455,6 +455,7 @@ input, select { font-family: inherit; }
 
   <!-- ============ SHOP ============ -->
   <section class="view" id="view-shop">
+    <button class="btn-primary" id="shopShareBtn" style="width:100%;margin-bottom:1rem">📤 Share / copy shopping list</button>
     <div class="card">
       <div class="card-title">Weekly Staples <span class="tac" id="shopReset">Reset checks</span></div>
       <p class="muted" style="font-size:0.76rem;margin:-0.5rem 0 0.5rem">Check off as you shop. Every item here pulls a protocol lever.</p>
@@ -1505,6 +1506,42 @@ function toggleShopDay(d){ const sh=getShop(); const i=sh.days.indexOf(d); if(i>
 function toggleGen(id){ const sh=getShop(); sh.gen[id]=!sh.gen[id]; saveState(); renderShop(); }
 function resetShopChecks(){ const sh=getShop(); sh.staples={}; sh.gen={}; saveState(); renderShop(); toast('Checks cleared'); }
 
+/* Compile the UNCHECKED items (i.e. what's still to buy) into shareable text. */
+function buildShoppingText(){
+  const sh=getShop();
+  const lines=['🛒 Shopping List'];
+  SHOP_STAPLES.forEach(sec=>{
+    const items=sec.items.filter(it=>!sh.staples[it]);
+    if(items.length){ lines.push(''); lines.push(sec.section.toUpperCase()); items.forEach(it=>lines.push('• '+it)); }
+  });
+  if(sh.days.length){
+    const counts={};
+    sh.days.forEach(d=>{ const p=DAY_PLAN[d]; if(p) Object.values(p).forEach(arr=>arr.forEach(id=>counts[id]=(counts[id]||0)+1)); });
+    const bySec={};
+    Object.keys(counts).forEach(id=>{ if(sh.gen[id]) return; const f=FOOD_MAP[id]; if(!f) return;
+      const sec=CAT_SECTION[f.cat]||'Other'; (bySec[sec]=bySec[sec]||[]).push(f.name+(counts[id]>1?` ×${counts[id]}`:'')); });
+    const order=GEN_SECTION_ORDER.filter(s=>bySec[s]);
+    if(order.length){
+      lines.push(''); lines.push(`— FROM MEAL PLAN (${sh.days.map(d=>d.slice(0,3)).join(', ')}) —`);
+      order.forEach(sec=>{ lines.push(''); lines.push(sec.toUpperCase()); bySec[sec].sort().forEach(n=>lines.push('• '+n)); });
+    }
+  }
+  return lines.join('\n');
+}
+async function shareShoppingList(){
+  const text=buildShoppingText();
+  if(text.trim()==='🛒 Shopping List'){ toast("Nothing to export — it's all checked off"); return; }
+  if(navigator.share){
+    try { await navigator.share({ title:'Shopping List', text }); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(text); toast('List copied to clipboard ✓'); return; }
+  catch(e){}
+  const blob=new Blob([text],{type:'text/plain'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='shopping-list.txt'; a.click();
+  toast('List downloaded');
+}
+
 /* ---------- REFERENCE ---------- */
 function renderRef(){
   document.getElementById('refTabs').innerHTML = REF_TABS.map(t=>
@@ -1717,6 +1754,7 @@ function bindEvents(){
     if(!wa||!ne){ toast('Enter waist & neck'); return; } state.bodyComp[currentDate]={waist:wa,neck:ne}; saveState(); renderBodyComp(); toast('Measurement saved ✓'); };
   document.getElementById('planLoadBtn').onclick=loadPlanIntoToday;
   document.getElementById('shopReset').onclick=resetShopChecks;
+  document.getElementById('shopShareBtn').onclick=shareShoppingList;
   document.getElementById('shopStaples').addEventListener('click', e=>{ const r=e.target.closest('[data-key]'); if(r) toggleStaple(r.dataset.key); });
   document.getElementById('shopDayPills').addEventListener('click', e=>{ const b=e.target.closest('[data-day]'); if(b) toggleShopDay(b.dataset.day); });
   document.getElementById('shopGenerated').addEventListener('click', e=>{ const r=e.target.closest('[data-gid]'); if(r) toggleGen(r.dataset.gid); });
