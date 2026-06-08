@@ -349,6 +349,10 @@ input, select { font-family: inherit; }
 .cf-flags { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 0.2rem; }
 .cf-flags label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; color: var(--text); }
 .cf-flags input { width: auto; }
+.qv { cursor: pointer; border-bottom: 1px dotted var(--text-dim); }
+#amtVal { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.8rem; color: var(--text); font-family: var(--mono); font-size: 1.15rem; }
+#amtVal:focus { outline: none; border-color: var(--accent); }
+#amtUnit button { padding: 0.45rem 0.6rem; font-size: 0.78rem; }
 </style>
 </head>
 <body>
@@ -581,6 +585,26 @@ input, select { font-family: inherit; }
   </div>
 </div>
 
+<!-- AMOUNT (servings / weight) -->
+<div class="modal-backdrop center" id="amountModal">
+  <div class="warn-modal" style="border-color:var(--accent)">
+    <h2 id="amtTitle">Amount</h2>
+    <div class="wm-body" id="amtSub" style="margin-bottom:0.8rem"></div>
+    <div style="display:flex; gap:0.5rem; margin-bottom:1rem; align-items:center">
+      <input id="amtVal" type="number" inputmode="decimal" step="0.1" style="flex:1; min-width:0" />
+      <div class="daytype-toggle" id="amtUnit" style="margin:0">
+        <button data-u="serv">serv</button>
+        <button data-u="oz">oz</button>
+        <button data-u="g">g</button>
+      </div>
+    </div>
+    <div class="wm-btns">
+      <button class="wm-cancel" id="amtCancel">Cancel</button>
+      <button class="wm-confirm" id="amtSave" style="background:var(--accent)">Set</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -687,6 +711,7 @@ const FOODS = [
   { id:'rice_cake', name:'Brown rice cake', cat:'grains', serv:'1 cake', cal:35, p:0.7, c:7, f:0.3, sat:0, fib:0.4, rs:0.5 },
   { id:'crackers_wg', name:'Whole grain crackers', cat:'grains', serv:'5 crackers', cal:90, p:2, c:15, f:2.5, sat:0.4, fib:2, rs:0.5 },
   { id:'risotto', name:'Risotto (parmesan)', cat:'grains', serv:'1 cup', cal:400, p:9, c:50, f:14, sat:6, fib:1.5, rs:0, flags:['satfat'] },
+  { id:'popcorn_air', name:'Popcorn, air-popped', cat:'grains', serv:'3 cups', cal:90, p:3, c:18, f:1, sat:0.2, fib:3.5, rs:0 },
 
   // ---- More RS starches (cool for max RS3) ----
   { id:'black_beans_cold', name:'Cooled black beans', cat:'rs', serv:'1/2 cup', cal:114, p:7.6, c:20, f:0.5, sat:0.1, fib:7.5, rs:4, rsType:'RS3', prep:'cooling' },
@@ -812,6 +837,8 @@ const FOODS = [
   { id:'kombucha', name:'Kombucha', cat:'other', serv:'1 cup (8 oz)', cal:30, p:0, c:7, f:0, sat:0, fib:0, rs:0 },
   { id:'gt_trilogy', name:"GT's Synergy Trilogy", cat:'other', serv:'1 bottle (16 oz)', cal:60, p:0, c:14, f:0, sat:0, fib:0, rs:0 },
   { id:'gt_gingerade', name:"GT's Synergy Gingerade", cat:'other', serv:'1 bottle (16 oz)', cal:60, p:0, c:14, f:0, sat:0, fib:0, rs:0 },
+  { id:'diet_coke', name:'Diet Coke', cat:'other', serv:'1 can (12 oz)', cal:0, p:0, c:0, f:0, sat:0, fib:0, rs:0 },
+  { id:'lifesavers_gummies', name:'Life Savers Gummies', cat:'other', serv:'7 gummies (39g)', cal:130, p:1, c:30, f:0, sat:0, fib:0, rs:0 },
 
   // ---- Flagged (kept, not removed) ----
   { id:'butter', name:'Butter', cat:'flagged', serv:'1 tbsp', cal:102, p:0.1, c:0, f:11.5, sat:7.3, fib:0, rs:0, flags:['satfat'] },
@@ -858,7 +885,8 @@ const FOODS = [
   { id:'cheese_american', name:'American cheese', cat:'flagged', serv:'1 slice', cal:60, p:3, c:1, f:5, sat:3, fib:0, rs:0, flags:['satfat','processed'] },
   { id:'cheese_provolone', name:'Provolone', cat:'flagged', serv:'1 slice', cal:100, p:7, c:0.6, f:7.5, sat:4.8, fib:0, rs:0, flags:['satfat'] },
   { id:'cheese_muenster', name:'Muenster', cat:'flagged', serv:'1 slice', cal:104, p:7, c:0.3, f:8.5, sat:5.4, fib:0, rs:0, flags:['satfat'] },
-  { id:'cheese_swiss', name:'Swiss cheese', cat:'flagged', serv:'1 slice', cal:106, p:7.5, c:1.5, f:8, sat:5, fib:0, rs:0, flags:['satfat'] }
+  { id:'cheese_swiss', name:'Swiss cheese', cat:'flagged', serv:'1 slice', cal:106, p:7.5, c:1.5, f:8, sat:5, fib:0, rs:0, flags:['satfat'] },
+  { id:'popcorn_movie', name:'Movie theater popcorn, buttered', cat:'flagged', serv:'1 medium tub', cal:1000, p:14, c:95, f:55, sat:28, fib:12, rs:0, flags:['satfat'] }
 ];
 let ALL_FOODS = FOODS.slice();
 let FOOD_MAP = Object.fromEntries(ALL_FOODS.map(f => [f.id, f]));
@@ -866,6 +894,34 @@ let FOOD_MAP = Object.fromEntries(ALL_FOODS.map(f => [f.id, f]));
 function rebuildFoods(){
   ALL_FOODS = FOODS.concat((state && state.customFoods) ? state.customFoods : []);
   FOOD_MAP = Object.fromEntries(ALL_FOODS.map(f => [f.id, f]));
+}
+
+/* Grams per ONE listed serving, for cup/tbsp/piece foods (oz foods derive automatically). */
+const SERVING_GRAMS = {
+  rice_cold_3:52, rice_cold_h:79, potato_cold_h:75, potato_cold_3q:113,
+  chickpeas_cold:123, cannellini_cold:133, lentils_cold:99,
+  oats_raw_q:20, oats_raw_h:40, green_banana:118,
+  potato_starch_1:12, potato_starch_2:24, banana_flour:16,
+  black_beans_cold:86, kidney_beans_cold:88, pinto_beans_cold:86,
+  sweet_potato_cold:100, pasta_cold:140, brown_rice_cold:98,
+  quinoa:185, brown_rice:195, pasta_ww:140, barley:157, couscous:157, oatmeal_cooked:234,
+  sweet_potato_baked:130, broccoli:91, asparagus:134, avocado:100, blueberries:74,
+  almonds:28, cashews:28, pistachios:28, pecans:28, walnuts:7,
+  greek_yogurt:170, cottage_cheese:113, banana_ripe:39, popcorn_air:24, lifesavers_gummies:39
+};
+const OZ_G = 28.3495;
+/* Returns grams for one serving of a food, or null if we can't determine a weight. */
+function servingGrams(food){
+  if(!food) return null;
+  if(food.g) return food.g;
+  if(SERVING_GRAMS[food.id]) return SERVING_GRAMS[food.id];
+  const m = (food.serv||'').match(/([\d.]+)\s*oz/);
+  if(m) return parseFloat(m[1]) * OZ_G;
+  return null;
+}
+function entryQty(food, e){
+  if(e.grams!=null){ return (Math.round((e.grams/OZ_G)*10)/10) + ' oz'; }
+  return e.servings + '×';
 }
 
 const CATS = [
@@ -1073,11 +1129,17 @@ function removeEntry(date, slotId, entryId){
   log.meals[slotId] = log.meals[slotId].filter(e=> e.id!==entryId);
   saveState();
 }
-function changeServings(date, slotId, entryId, delta){
+function changeServings(date, slotId, entryId, dir){
   const log = getLog(date);
   const e = log.meals[slotId].find(x=>x.id===entryId);
   if(!e) return;
-  e.servings = Math.max(0.25, Math.round((e.servings+delta)*4)/4);
+  const sg = servingGrams(FOOD_MAP[e.foodId]);
+  if(e.grams!=null && sg){
+    e.grams = Math.max(7, Math.round(e.grams + dir*(0.5*OZ_G))); // ±0.5 oz steps
+    e.servings = e.grams/sg;
+  } else {
+    e.servings = Math.max(0.25, Math.round((e.servings + dir*0.25)*4)/4);
+  }
   saveState();
 }
 
@@ -1254,9 +1316,9 @@ function renderSlots(){
         <div class="e-name">${food.name} <span class="e-serv">· ${food.serv}</span></div>
         <div class="e-flags">${entryFlags(food)}</div>
         <div class="qty">
-          <button onclick="onServings('${slot.id}',${e.id},-0.25)">−</button>
-          <span class="qv">${e.servings}×</span>
-          <button onclick="onServings('${slot.id}',${e.id},0.25)">+</button>
+          <button onclick="onServings('${slot.id}',${e.id},-1)">−</button>
+          <span class="qv" onclick="openAmount('${slot.id}',${e.id})">${entryQty(food,e)}</span>
+          <button onclick="onServings('${slot.id}',${e.id},1)">+</button>
         </div>
         <button class="e-del" onclick="onDelete('${slot.id}',${e.id})">🗑</button>
       </div>`;
@@ -1713,8 +1775,44 @@ function loadMealTemplate(slotId){
 }
 
 /* ---------- HANDLERS ---------- */
-function onServings(slot,id,delta){ changeServings(currentDate,slot,id,delta); renderAll(); }
+function onServings(slot,id,dir){ changeServings(currentDate,slot,id,dir); renderAll(); }
 function onDelete(slot,id){ removeEntry(currentDate,slot,id); renderAll(); }
+
+/* ---------- AMOUNT (servings or weight) ---------- */
+let amtEdit=null, amtUnit='serv';
+function openAmount(slot,id){
+  const log=getLog(currentDate);
+  const e=log.meals[slot] && log.meals[slot].find(x=>x.id===id);
+  if(!e) return;
+  const food=FOOD_MAP[e.foodId];
+  const sg=servingGrams(food);
+  amtEdit={slot,id};
+  document.getElementById('amtTitle').textContent = food? food.name : 'Amount';
+  document.getElementById('amtSub').innerHTML = sg
+    ? `1 serving (${food.serv}) ≈ <b>${Math.round(sg)} g · ${(sg/OZ_G).toFixed(1)} oz</b>. Enter servings, oz, or grams.`
+    : `Weighing isn't set up for this item — enter servings.`;
+  document.querySelectorAll('#amtUnit [data-u="oz"],#amtUnit [data-u="g"]').forEach(b=> b.style.display = sg?'':'none');
+  if(e.grams!=null && sg){ amtUnit='oz'; document.getElementById('amtVal').value=(e.grams/OZ_G).toFixed(1); }
+  else { amtUnit='serv'; document.getElementById('amtVal').value=e.servings; }
+  updateAmtUnitUI();
+  document.getElementById('amountModal').classList.add('open');
+  setTimeout(()=>{ const v=document.getElementById('amtVal'); v.focus(); v.select(); },100);
+}
+function updateAmtUnitUI(){ document.querySelectorAll('#amtUnit button').forEach(b=>b.classList.toggle('on', b.dataset.u===amtUnit)); }
+function setAmtUnit(u){ amtUnit=u; updateAmtUnitUI(); }
+function saveAmount(){
+  if(!amtEdit) return;
+  const log=getLog(currentDate);
+  const e=log.meals[amtEdit.slot] && log.meals[amtEdit.slot].find(x=>x.id===amtEdit.id);
+  if(!e){ closeAmount(); return; }
+  const sg=servingGrams(FOOD_MAP[e.foodId]);
+  const val=parseFloat(document.getElementById('amtVal').value);
+  if(isNaN(val)||val<=0){ toast('Enter an amount'); return; }
+  if(amtUnit==='serv' || !sg){ e.servings=val; delete e.grams; }
+  else { const g = amtUnit==='oz'? val*OZ_G : val; e.grams=g; e.servings=g/sg; }
+  saveState(); closeAmount(); renderAll();
+}
+function closeAmount(){ amtEdit=null; document.getElementById('amountModal').classList.remove('open'); }
 
 /* ---------- VIEW SWITCH ---------- */
 function switchView(v){
@@ -1804,6 +1902,11 @@ function bindEvents(){
   document.getElementById('customClose').onclick=()=>document.getElementById('customModal').classList.remove('open');
   document.getElementById('customModal').addEventListener('click', e=>{ if(e.target.id==='customModal') document.getElementById('customModal').classList.remove('open'); });
   document.getElementById('cfSave').onclick=saveCustomFood;
+  document.getElementById('amtUnit').addEventListener('click', e=>{ const b=e.target.closest('[data-u]'); if(b) setAmtUnit(b.dataset.u); });
+  document.getElementById('amtCancel').onclick=closeAmount;
+  document.getElementById('amtSave').onclick=saveAmount;
+  document.getElementById('amountModal').addEventListener('click', e=>{ if(e.target.id==='amountModal') closeAmount(); });
+  document.getElementById('amtVal').addEventListener('keydown', e=>{ if(e.key==='Enter') saveAmount(); });
   window.addEventListener('resize', ()=>{ if(document.getElementById('view-trends').classList.contains('active')) renderWeightChart(); });
 }
 
