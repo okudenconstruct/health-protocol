@@ -192,8 +192,10 @@ input, select { font-family: inherit; }
 .qty button { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-input); border: 1px solid var(--border-soft);
   font-size: 1rem; font-weight: 700; color: var(--text-muted); display: grid; place-items: center; }
 .qty button:active { transform: scale(0.9); }
-.qty .qv { min-width: 52px; text-align: center; font-family: var(--mono); font-size: 0.78rem; cursor: pointer;
-  background: var(--bg-input); border: 1px solid var(--accent); color: var(--text); border-radius: 7px; padding: 4px 6px; }
+.qty .qv { white-space: nowrap; text-align: center; font-family: var(--mono); font-size: 0.78rem; cursor: pointer;
+  background: var(--bg-input); border: 1px solid var(--accent); color: var(--text); border-radius: 7px; padding: 4px 8px; line-height: 1.2; }
+.entry .qty { flex-shrink: 0; }
+.entry .e-name { min-width: 0; }
 .qty .qv:active { transform: scale(0.94); }
 .e-del { color: var(--text-dim); font-size: 1rem; padding: 0 4px; }
 .slot-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
@@ -921,7 +923,10 @@ function servingGrams(food){
   return null;
 }
 function entryQty(food, e){
-  if(e.grams!=null){ return (Math.round((e.grams/OZ_G)*10)/10) + ' oz'; }
+  if(e.grams!=null){
+    if(e.unit==='g') return Math.round(e.grams) + ' g';
+    return (Math.round((e.grams/OZ_G)*10)/10) + ' oz';
+  }
   return e.servings + '×';
 }
 
@@ -1136,7 +1141,8 @@ function changeServings(date, slotId, entryId, dir){
   if(!e) return;
   const sg = servingGrams(FOOD_MAP[e.foodId]);
   if(e.grams!=null && sg){
-    e.grams = Math.max(7, Math.round(e.grams + dir*(0.5*OZ_G))); // ±0.5 oz steps
+    if(e.unit==='g'){ e.grams = Math.max(1, Math.round(e.grams + dir*5)); }          // ±5 g steps
+    else { e.grams = Math.max(7, Math.round(e.grams + dir*(0.5*OZ_G))); }             // ±0.5 oz steps
     e.servings = e.grams/sg;
   } else {
     e.servings = Math.max(0.25, Math.round((e.servings + dir*0.25)*4)/4);
@@ -1793,7 +1799,7 @@ function openAmount(slot,id){
     ? `1 serving (${food.serv}) ≈ <b>${Math.round(sg)} g · ${(sg/OZ_G).toFixed(1)} oz</b>. Enter servings, oz, or grams.`
     : `Weighing isn't set up for this item — enter servings.`;
   document.querySelectorAll('#amtUnit [data-u="oz"],#amtUnit [data-u="g"]').forEach(b=> b.style.display = sg?'':'none');
-  if(e.grams!=null && sg){ amtUnit='oz'; document.getElementById('amtVal').value=(e.grams/OZ_G).toFixed(1); }
+  if(e.grams!=null && sg){ amtUnit = e.unit || 'oz'; document.getElementById('amtVal').value = amtUnit==='g' ? Math.round(e.grams) : (e.grams/OZ_G).toFixed(1); }
   else { amtUnit='serv'; document.getElementById('amtVal').value=e.servings; }
   updateAmtUnitUI();
   document.getElementById('amountModal').classList.add('open');
@@ -1809,8 +1815,8 @@ function saveAmount(){
   const sg=servingGrams(FOOD_MAP[e.foodId]);
   const val=parseFloat(document.getElementById('amtVal').value);
   if(isNaN(val)||val<=0){ toast('Enter an amount'); return; }
-  if(amtUnit==='serv' || !sg){ e.servings=val; delete e.grams; }
-  else { const g = amtUnit==='oz'? val*OZ_G : val; e.grams=g; e.servings=g/sg; }
+  if(amtUnit==='serv' || !sg){ e.servings=val; delete e.grams; delete e.unit; }
+  else { const g = amtUnit==='oz'? val*OZ_G : val; e.grams=g; e.unit=amtUnit; e.servings=g/sg; }
   saveState(); closeAmount(); renderAll();
 }
 function closeAmount(){ amtEdit=null; document.getElementById('amountModal').classList.remove('open'); }
