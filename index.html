@@ -192,8 +192,9 @@ input, select { font-family: inherit; }
 .qty button { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-input); border: 1px solid var(--border-soft);
   font-size: 1rem; font-weight: 700; color: var(--text-muted); display: grid; place-items: center; }
 .qty button:active { transform: scale(0.9); }
-.qty .qv { white-space: nowrap; text-align: center; font-family: var(--mono); font-size: 0.78rem; cursor: pointer;
-  background: var(--bg-input); border: 1px solid var(--accent); color: var(--text); border-radius: 7px; padding: 4px 8px; line-height: 1.2; }
+.qty .qv { width: auto; height: auto; min-width: 50px; display: inline-block; white-space: nowrap; text-align: center;
+  font-family: var(--mono); font-size: 0.78rem; cursor: pointer; background: var(--bg-input); border: 1px solid var(--accent);
+  color: var(--text); border-radius: 7px; padding: 5px 8px; line-height: 1.2; }
 .entry .qty { flex-shrink: 0; }
 .entry .e-name { min-width: 0; }
 .qty .qv:active { transform: scale(0.94); }
