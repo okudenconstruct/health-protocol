@@ -192,7 +192,9 @@ input, select { font-family: inherit; }
 .qty button { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-input); border: 1px solid var(--border-soft);
   font-size: 1rem; font-weight: 700; color: var(--text-muted); display: grid; place-items: center; }
 .qty button:active { transform: scale(0.9); }
-.qty .qv { min-width: 34px; text-align: center; font-family: var(--mono); font-size: 0.8rem; }
+.qty .qv { min-width: 52px; text-align: center; font-family: var(--mono); font-size: 0.78rem; cursor: pointer;
+  background: var(--bg-input); border: 1px solid var(--accent); color: var(--text); border-radius: 7px; padding: 4px 6px; }
+.qty .qv:active { transform: scale(0.94); }
 .e-del { color: var(--text-dim); font-size: 1rem; padding: 0 4px; }
 .slot-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
 .btn-add { flex: 1; padding: 0.5rem; border-radius: var(--radius-sm); background: var(--bg-input);
@@ -349,7 +351,6 @@ input, select { font-family: inherit; }
 .cf-flags { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 0.2rem; }
 .cf-flags label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; color: var(--text); }
 .cf-flags input { width: auto; }
-.qv { cursor: pointer; border-bottom: 1px dotted var(--text-dim); }
 #amtVal { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.8rem; color: var(--text); font-family: var(--mono); font-size: 1.15rem; }
 #amtVal:focus { outline: none; border-color: var(--accent); }
 #amtUnit button { padding: 0.45rem 0.6rem; font-size: 0.78rem; }
@@ -394,7 +395,7 @@ input, select { font-family: inherit; }
       <div class="secondary-strip" id="secondaryStrip"></div>
     </div>
 
-    <div class="card-title" style="padding:0 0.2rem">Meals</div>
+    <div class="card-title" style="padding:0 0.2rem">Meals <span class="tac" style="cursor:default">tap ⚖ to weigh (oz/g)</span></div>
     <div id="slots"></div>
 
     <div class="card">
@@ -1317,7 +1318,7 @@ function renderSlots(){
         <div class="e-flags">${entryFlags(food)}</div>
         <div class="qty">
           <button onclick="onServings('${slot.id}',${e.id},-1)">−</button>
-          <span class="qv" onclick="openAmount('${slot.id}',${e.id})">${entryQty(food,e)}</span>
+          <button class="qv" onclick="openAmount('${slot.id}',${e.id})" title="Tap to set servings or weight">⚖ ${entryQty(food,e)}</button>
           <button onclick="onServings('${slot.id}',${e.id},1)">+</button>
         </div>
         <button class="e-del" onclick="onDelete('${slot.id}',${e.id})">🗑</button>
