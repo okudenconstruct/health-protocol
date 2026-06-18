@@ -1781,7 +1781,7 @@ function pickFood(foodId){
     pendingAdd = { slot: pickerSlot, foodId };
     showWarning(food);
   } else {
-    addFood(currentDate, pickerSlot, foodId);
+    addFood(viewDate, pickerSlot, foodId);
     toast(`Added ${food.name}`); closePicker(); renderAll();
   }
 }
@@ -1795,7 +1795,7 @@ function showWarning(food){
 }
 function confirmWarning(){
   if(pendingAdd){ const f=FOOD_MAP[pendingAdd.foodId];
-    addFood(currentDate, pendingAdd.slot, pendingAdd.foodId);
+    addFood(viewDate, pendingAdd.slot, pendingAdd.foodId);
     toast(`Logged ${f.name}`); }
   pendingAdd=null;
   document.getElementById('warnModal').classList.remove('open');
@@ -1806,20 +1806,20 @@ function cancelWarning(){ pendingAdd=null; document.getElementById('warnModal').
 function loadMealTemplate(slotId){
   const tmpls = MEAL_TEMPLATES[slotId]; if(!tmpls) return;
   let tmpl = tmpls[0];
-  if(slotId==='postGym' && tmpls.length>1){ tmpl = (parseDate(currentDate).getDate()%2===0)? tmpls[1]:tmpls[0]; }
-  const log=getLog(currentDate);
+  if(slotId==='postGym' && tmpls.length>1){ tmpl = (parseDate(viewDate).getDate()%2===0)? tmpls[1]:tmpls[0]; }
+  const log=getLog(viewDate);
   tmpl.items.forEach(fid=> log.meals[slotId].push({id:state._seq++, foodId:fid, servings:1}));
   saveState(); renderAll(); toast(`Loaded: ${tmpl.name}`);
 }
 
 /* ---------- HANDLERS ---------- */
-function onServings(slot,id,dir){ changeServings(currentDate,slot,id,dir); renderAll(); }
-function onDelete(slot,id){ removeEntry(currentDate,slot,id); renderAll(); }
+function onServings(slot,id,dir){ changeServings(viewDate,slot,id,dir); renderAll(); }
+function onDelete(slot,id){ removeEntry(viewDate,slot,id); renderAll(); }
 
 /* ---------- AMOUNT (servings or weight) ---------- */
 let amtEdit=null, amtUnit='serv';
 function openAmount(slot,id){
-  const log=getLog(currentDate);
+  const log=getLog(viewDate);
   const e=log.meals[slot] && log.meals[slot].find(x=>x.id===id);
   if(!e) return;
   const food=FOOD_MAP[e.foodId];
@@ -1840,7 +1840,7 @@ function updateAmtUnitUI(){ document.querySelectorAll('#amtUnit button').forEach
 function setAmtUnit(u){ amtUnit=u; updateAmtUnitUI(); }
 function saveAmount(){
   if(!amtEdit) return;
-  const log=getLog(currentDate);
+  const log=getLog(viewDate);
   const e=log.meals[amtEdit.slot] && log.meals[amtEdit.slot].find(x=>x.id===amtEdit.id);
   if(!e){ closeAmount(); return; }
   const sg=servingGrams(FOOD_MAP[e.foodId]);
