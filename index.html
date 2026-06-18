@@ -847,6 +847,7 @@ const FOODS = [
   { id:'gt_gingerade', name:"GT's Synergy Gingerade", cat:'other', serv:'1 bottle (16 oz)', cal:60, p:0, c:14, f:0, sat:0, fib:0, rs:0 },
   { id:'gt_honeycrisp', name:"GT's Synergy Honeycrisp Apple", cat:'other', serv:'1 bottle (16 oz)', cal:60, p:0, c:14, f:0, sat:0, fib:0, rs:0 },
   { id:'diet_coke', name:'Diet Coke', cat:'other', serv:'1 can (12 oz)', cal:0, p:0, c:0, f:0, sat:0, fib:0, rs:0 },
+  { id:'canes_sweet_tea', name:"Raising Cane's Sweet Tea (regular)", cat:'other', serv:'1 regular (22 oz)', cal:170, p:0, c:44, f:0, sat:0, fib:0, rs:0 },
   { id:'lifesavers_gummies', name:'Life Savers Gummies', cat:'other', serv:'7 pieces (28g)', cal:90, p:1, c:21, f:0, sat:0, fib:0, rs:0 },
 
   // ---- Flagged (kept, not removed) ----
@@ -871,6 +872,9 @@ const FOODS = [
   { id:'hot_dog', name:'Hot dog', cat:'flagged', serv:'1 link', cal:150, p:5, c:2, f:13, sat:5, fib:0, rs:0, flags:['satfat'] },
   { id:'fries', name:'French fries', cat:'flagged', serv:'medium', cal:365, p:4, c:48, f:17, sat:3, fib:4, rs:1, flags:['reflux','satfat'] },
   { id:'fried_fish', name:'Fried battered fish (fish & chips)', cat:'flagged', serv:'1 fillet (5 oz)', cal:330, p:18, c:21, f:18, sat:4, fib:0.7, rs:0, flags:['reflux'] },
+  { id:'canes_chicken_finger', name:"Raising Cane's Chicken Finger", cat:'flagged', serv:'1 finger', cal:130, p:12, c:9, f:7, sat:1.5, fib:0, rs:0, flags:['reflux'] },
+  { id:'canes_fries', name:"Raising Cane's Fries", cat:'flagged', serv:'1 regular', cal:410, p:5, c:48, f:22, sat:4, fib:4, rs:0, flags:['reflux','satfat'] },
+  { id:'canes_sauce', name:"Cane's Sauce", cat:'flagged', serv:'1 serving (1.5 oz)', cal:190, p:1, c:3, f:20, sat:3, fib:0, rs:0, flags:['satfat'] },
   { id:'pizza', name:'Pizza, cheese', cat:'flagged', serv:'1 slice', cal:285, p:12, c:36, f:10, sat:4.5, fib:2, rs:0, flags:['reflux','satfat'] },
   { id:'tomato_fresh', name:'Tomato, fresh', cat:'flagged', serv:'1 medium', cal:22, p:1, c:5, f:0.2, sat:0, fib:1.5, rs:0, flags:['reflux'] },
   { id:'marinara', name:'Marinara sauce', cat:'flagged', serv:'1/2 cup', cal:70, p:2, c:10, f:2.5, sat:0.4, fib:3, rs:0, flags:['reflux'] },
@@ -937,7 +941,7 @@ const SERVING_GRAMS = {
   // grains / breads
   bread_ww:28, bread_white:25, bread_sourdough:48, bread_ezekiel:34, bread_rye:32, bagel_ww:95,
   english_muffin:57, pita_ww:64, tortilla_ww:42, tortilla_corn:26, bran_flakes:30, rice_cake:9, crackers_wg:16,
-  steve_potato_salad:100
+  steve_potato_salad:100, canes_chicken_finger:50, canes_fries:117
 };
 const OZ_G = 28.3495;
 /* Returns grams for one serving of a food, or null if we can't determine a weight. */
