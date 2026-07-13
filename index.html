@@ -411,6 +411,29 @@ input, select { font-family: inherit; }
 .gf input:focus { outline: none; border-color: var(--accent); }
 .gf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .tabbar button .ti { font-size: 1.2rem; }
+.tabbar button { font-size: 0.6rem; }
+
+/* ===== GYM ===== */
+.wo-ex { background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; cursor: pointer; }
+.wo-ex-head { display: flex; align-items: center; justify-content: space-between; }
+.wo-ex-name { font-weight: 700; font-size: 0.9rem; }
+.wo-ex-detail { font-family: var(--mono); font-size: 0.8rem; color: var(--text-muted); margin-top: 3px; }
+.pr-badge { background: var(--warning); color: #1a1206; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 5px; vertical-align: middle; }
+.rec-row { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.45rem 0; border-top: 1px solid var(--border-soft); }
+.rec-row:first-child { border-top: none; }
+.rec-n { font-weight: 600; font-size: 0.85rem; }
+.rec-d { font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); text-align: right; }
+.rec-d b { color: var(--warning); }
+.ex-name-input { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.65rem 0.8rem; color: var(--text); font-size: 1rem; }
+.ex-name-input:focus { outline: none; border-color: var(--accent); }
+.last-hint { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; min-height: 0; }
+.set-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.4rem; }
+.set-n { width: 20px; font-family: var(--mono); font-size: 0.8rem; color: var(--text-dim); }
+.set-row input { flex: 1; min-width: 0; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem; color: var(--text); font-family: var(--mono); text-align: center; }
+.set-row input:focus { outline: none; border-color: var(--accent); }
+.set-x { color: var(--text-dim); }
+.set-del { width: 30px; height: 30px; border-radius: 7px; background: var(--bg-card-2); border: 1px solid var(--border-soft); color: var(--text-dim); flex-shrink: 0; }
+#exType button { font-size: 0.82rem; padding: 0.5rem 0.9rem; }
 </style>
 </head>
 <body>
@@ -497,6 +520,11 @@ input, select { font-family: inherit; }
     <div id="levelContent"></div>
   </section>
 
+  <!-- ============ GYM / WORKOUTS ============ -->
+  <section class="view" id="view-gym">
+    <div id="gymContent"></div>
+  </section>
+
   <!-- ============ MEAL PLAN ============ -->
   <section class="view" id="view-plan">
     <div class="daytype-toggle" id="planModeToggle" style="margin-bottom:0.8rem">
@@ -543,10 +571,11 @@ input, select { font-family: inherit; }
 <nav class="tabbar" id="tabbar">
   <button data-view="today" class="active"><span class="ti">📋</span>Today</button>
   <button data-view="level"><span class="ti">⭐</span>Level</button>
+  <button data-view="gym"><span class="ti">💪</span>Gym</button>
   <button data-view="trends"><span class="ti">📈</span>Trends</button>
   <button data-view="plan"><span class="ti">🍽</span>Plan</button>
   <button data-view="shop"><span class="ti">🛒</span>Shop</button>
-  <button data-view="ref"><span class="ti">📖</span>Reference</button>
+  <button data-view="ref"><span class="ti">📖</span>Ref</button>
 </nav>
 
 <!-- FOOD PICKER MODAL -->
@@ -655,6 +684,18 @@ input, select { font-family: inherit; }
     <div class="wm-btns">
       <button class="wm-cancel" id="amtCancel">Cancel</button>
       <button class="wm-confirm" id="amtSave" style="background:var(--accent)">Set</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXERCISE MODAL -->
+<div class="modal-backdrop" id="exModal">
+  <div class="modal">
+    <div class="modal-head"><h2 id="exModalTitle">Add exercise</h2><button class="icon-btn" id="exClose">✕</button></div>
+    <div style="padding:0 1rem 1.5rem; overflow-y:auto">
+      <div id="exBody"></div>
+      <button class="btn-primary" id="exSave" style="width:100%;margin-top:1rem">Save exercise</button>
+      <button class="btn-tmpl" id="exDelete" style="width:100%;margin-top:0.5rem;display:none">Delete</button>
     </div>
   </div>
 </div>
@@ -1148,6 +1189,7 @@ const DEFAULT_STATE = {
     seenLevel: 1,       // last level the user was shown (for level-up detection)
     habitMilestones: {} // streak milestone -> date celebrated
   },
+  workouts: {},         // date -> [ {id, name, type:'strength'|'cardio', sets:[{reps,weight}], mins, dist} ]
   _seq: 1,
   updatedAt: 0
 };
@@ -1217,6 +1259,7 @@ function applyRemoteState(remote){
   if(active){ const v=active.id.replace('view-','');
     if(v==='trends'){ renderRamp(); renderWeight(); }
     else if(v==='level') renderLevel();
+    else if(v==='gym') renderGym();
     else if(v==='plan') renderPlan();
     else if(v==='ref') renderRef(); }
 }
@@ -1370,7 +1413,48 @@ function dayXp(date){
   if(h.protein&&h.rs&&h.fiber) xp+=25;
   return xp;
 }
-function totalXp(){ let x=getGame().goalBonusXp||0; Object.keys(state.dailyLogs).forEach(d=> x+=dayXp(d)); return x; }
+/* ----- workouts ----- */
+function getWorkout(date){ if(!state.workouts) state.workouts={}; if(!state.workouts[date]) state.workouts[date]=[]; return state.workouts[date]; }
+function est1RM(reps,weight){ return (weight||0)*(1+(reps||0)/30); } // Epley
+function exerciseNames(){ const s=new Set(); Object.values(state.workouts||{}).forEach(arr=>arr.forEach(ex=>s.add(ex.name))); return [...s]; }
+function exerciseSessions(name){ // sorted list of {date, sets, best1rm, topWeight}
+  const out=[]; Object.keys(state.workouts||{}).sort().forEach(d=>{ (state.workouts[d]||[]).forEach(ex=>{
+    if(ex.type==='strength' && ex.name.toLowerCase()===name.toLowerCase()){
+      let best=0, top=0; (ex.sets||[]).forEach(s=>{ const e=est1RM(s.reps,s.weight); if(e>best)best=e; if((s.weight||0)>top)top=s.weight; });
+      out.push({date:d, sets:ex.sets||[], best1rm:best, topWeight:top});
+    }}); });
+  return out;
+}
+function exerciseTopWeight(name){ let t=0; exerciseSessions(name).forEach(s=>{ if(s.topWeight>t)t=s.topWeight; }); return t; }
+function lastSession(name, beforeDate){ const s=exerciseSessions(name).filter(x=> !beforeDate || x.date<beforeDate); return s.length?s[s.length-1]:null; }
+/* Deterministic workout XP: trained-day + per-exercise + per-set + PR bonuses. */
+function workoutXp(){
+  let xp=0; const running={};
+  Object.keys(state.workouts||{}).sort().forEach(d=>{
+    const exs=state.workouts[d]||[]; if(exs.length) xp+=15;
+    exs.forEach(ex=>{ xp+=8;
+      if(ex.type==='strength'){ let sb=0; (ex.sets||[]).forEach(s=>{ xp+=1; const e=est1RM(s.reps,s.weight); if(e>sb)sb=e; });
+        const k=ex.name.toLowerCase(); if(sb>(running[k]||0)+0.01){ if(running[k]) xp+=50; running[k]=sb; } }
+      else { xp+=Math.round((ex.mins||0)/5); }
+    });
+  });
+  return xp;
+}
+function workoutStats(){
+  const running={}; let strSess=0, prs=0, cardioSess=0, cardioMin=0; let anyWo=false;
+  Object.keys(state.workouts||{}).sort().forEach(d=>{ const exs=state.workouts[d]||[]; if(exs.length)anyWo=true;
+    let hasStr=false,hasCar=false;
+    exs.forEach(ex=>{ if(ex.type==='strength'){ hasStr=true; let sb=0; (ex.sets||[]).forEach(s=>{const e=est1RM(s.reps,s.weight); if(e>sb)sb=e;}); const k=ex.name.toLowerCase(); if(sb>(running[k]||0)+0.01){ if(running[k])prs++; running[k]=sb; } }
+      else { hasCar=true; cardioMin+=ex.mins||0; } });
+    if(hasStr)strSess++; if(hasCar)cardioSess++;
+  });
+  return {
+    strength: anyWo? Math.min(100, strSess*5 + prs*6) : null,
+    endurance: cardioSess? Math.min(100, cardioSess*6 + Math.round(cardioMin/10)) : null,
+    prs
+  };
+}
+function totalXp(){ let x=getGame().goalBonusXp||0; Object.keys(state.dailyLogs).forEach(d=> x+=dayXp(d)); x+=workoutXp(); return x; }
 function levelFromXp(xp){
   let lvl=1, need=100, cum=0;
   while(xp >= cum+need){ cum+=need; lvl++; need=Math.round(need*1.25); }
@@ -1393,7 +1477,8 @@ function computeStats(){
   const recent=Object.keys(state.dailyLogs).filter(dayLogged).sort().slice(-14);
   let hit=0,tot=0; recent.forEach(d=>{ const h=dayHits(d); ['protein','rs','fiber'].forEach(k=>{tot++; if(h[k])hit++;}); });
   const discipline= tot? Math.round(hit/tot*100):0;
-  return { consistency:Math.round(consistency), discipline, strength:null, endurance:null };
+  const w=workoutStats();
+  return { consistency:Math.round(consistency), discipline, strength:w.strength, endurance:w.endurance };
 }
 const HABIT_MILES=[3,7,14,30,60,100,180,365];
 function habitState(){
@@ -1409,6 +1494,9 @@ const ACHIEVEMENTS=[
   {id:'stack14', name:'Fully Saturated', icon:'💊', desc:'Take your stack on 14 days', test:()=> Object.keys(state.dailyLogs).filter(d=>state.dailyLogs[d].stack).length>=14},
   {id:'goal1', name:'Goal Crusher', icon:'🏆', desc:'Complete a primary goal', test:()=> !!(getGame().goals.primary && getGame().goals.primary.done)},
   {id:'level5', name:'Ascendant', icon:'⭐', desc:'Reach level 5', test:()=> levelFromXp(totalXp()).level>=5},
+  {id:'first_workout', name:'Iron Initiate', icon:'🏋️', desc:'Log your first workout', test:()=> Object.keys(state.workouts||{}).some(d=>(state.workouts[d]||[]).length)},
+  {id:'first_pr', name:'Overloaded', icon:'📈', desc:'Set a strength PR', test:()=> workoutStats().prs>=1},
+  {id:'pr10', name:'Relentless', icon:'🦾', desc:'Set 10 PRs', test:()=> workoutStats().prs>=10},
 ];
 function evaluateAchievements(){
   const g=getGame(); const newly=[];
@@ -1427,6 +1515,7 @@ function goalProgress(goal){
     return {current:cur,target:goal.target,pct,done,unit:'lbs'};
   }
   if(goal.type==='rs_ramp'){ const cur=state.settings.rsTarget; return {current:cur,target:40,pct:Math.min(1,cur/40),done:cur>=40,unit:'g RS/day'}; }
+  if(goal.type==='lift'){ const cur=exerciseTopWeight(goal.exercise); return {current:cur,target:goal.target,pct:goal.target?Math.min(1,cur/goal.target):0,done:cur>=goal.target,unit:'lbs'}; }
   if(goal.type==='streak'){ const cur=computeStreak().current; return {current:cur,target:goal.target,pct:Math.min(1,cur/goal.target),done:cur>=goal.target,unit:'day streak'}; }
   if(goal.type==='custom'){ const cur=goal.current||0, tg=goal.target||100; return {current:cur,target:tg,pct:Math.min(1,cur/tg),done:cur>=tg,unit:goal.unit||''}; }
   return null;
@@ -2046,6 +2135,7 @@ function switchView(v){
   window.scrollTo(0,0);
   if(v==='trends'){ renderRamp(); renderWeight(); }
   if(v==='level') renderLevel();
+  if(v==='gym') renderGym();
   if(v==='plan') renderPlan();
   if(v==='shop') renderShop();
   if(v==='ref') renderRef();
@@ -2065,13 +2155,14 @@ function renderAll(){
 }
 
 /* ---------- GAME UI: goal card, level view, goal modal ---------- */
-const GOAL_ICON={weight:'⚖️', rs_ramp:'🌀', streak:'🔥', custom:'🎯'};
+const GOAL_ICON={weight:'⚖️', rs_ramp:'🌀', streak:'🔥', custom:'🎯', lift:'🏋️'};
 function fmtNum(n){ return n==null?'—':(Math.round(n*10)/10).toString(); }
 function goalTitle(goal){
   if(goal.label) return goal.label;
   if(goal.type==='weight') return `Reach ${fmtNum(goal.target)} lbs`;
   if(goal.type==='rs_ramp') return 'Ramp RS to 40g/day';
   if(goal.type==='streak') return `${goal.target}-day logging streak`;
+  if(goal.type==='lift') return `${goal.exercise} → ${fmtNum(goal.target)} lbs`;
   return 'Goal';
 }
 function renderGoalCard(){
@@ -2125,8 +2216,8 @@ function renderLevel(){
       <div class="lh-xptxt">${lv.into} / ${lv.need} XP → LV ${lv.level+1} · ${xp} total XP</div>
     </div>
     <div class="card"><div class="card-title">Stats</div>
-      ${statLine('💪 Strength',0,true)}
-      ${statLine('🏃 Endurance',0,true)}
+      ${statLine('💪 Strength', stats.strength||0, stats.strength==null)}
+      ${statLine('🏃 Endurance', stats.endurance||0, stats.endurance==null)}
       ${statLine('🎯 Discipline',stats.discipline,false)}
       ${statLine('📆 Consistency',stats.consistency,false)}
     </div>
@@ -2139,7 +2230,7 @@ function renderLevel(){
 
 /* goal modal */
 let goalDraftType='weight';
-const GOAL_TYPES=[{t:'weight',ic:'⚖️',n:'Weight'},{t:'rs_ramp',ic:'🌀',n:'RS Ramp'},{t:'streak',ic:'🔥',n:'Streak'},{t:'custom',ic:'🎯',n:'Custom'}];
+const GOAL_TYPES=[{t:'weight',ic:'⚖️',n:'Weight'},{t:'lift',ic:'🏋️',n:'Lift'},{t:'rs_ramp',ic:'🌀',n:'RS Ramp'},{t:'streak',ic:'🔥',n:'Streak'},{t:'custom',ic:'🎯',n:'Custom'}];
 function openGoalModal(slot, isWall){
   const g=getGame(); const existing=g.goals[slot];
   goalDraftType = (existing && !existing.done)? existing.type : 'weight';
@@ -2165,6 +2256,10 @@ function renderGoalFields(cur){
     h=`<p class="muted" style="font-size:0.85rem">Ramp your daily resistant-starch target to <b>40g</b> and hold it. Progress follows your current RS rung (now ${state.settings.rsTarget}g).</p>`;
   } else if(goalDraftType==='streak'){
     h=`<div class="gf"><label>Target streak (days logged in a row)</label><input id="gfTarget" type="number" value="${cur?cur.target:30}" placeholder="30"></div>`;
+  } else if(goalDraftType==='lift'){
+    const recents=exerciseNames();
+    h=`<div class="gf"><label>Exercise</label><input list="glExNames" id="gfExercise" type="text" value="${cur&&cur.exercise?cur.exercise.replace(/"/g,'&quot;'):''}" placeholder="e.g. Bench press"><datalist id="glExNames">${recents.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist></div>
+       <div class="gf"><label>Target top weight (lbs)</label><input id="gfTarget" type="number" inputmode="decimal" value="${cur?cur.target:''}" placeholder="e.g. 225"></div>`;
   } else {
     h=`<div class="gf"><label>Goal name</label><input id="gfLabel" type="text" value="${cur&&cur.label?cur.label.replace(/"/g,'&quot;'):''}" placeholder="e.g. Establish strength baselines"></div>
        <div class="gf-grid"><div class="gf"><label>Target #</label><input id="gfTarget" type="number" value="${cur?cur.target:100}"></div><div class="gf"><label>Unit</label><input id="gfUnit" type="text" value="${cur&&cur.unit?cur.unit:''}" placeholder="%, lbs, sessions…"></div></div>
@@ -2179,12 +2274,111 @@ function saveGoal(){
   if(goalDraftType==='weight'){ const tg=num('gfTarget'); if(tg==null){toast('Enter a target weight');return;} goal.target=tg; goal.start=latestWeight()||tg; const dl=document.getElementById('gfDeadline').value; if(dl) goal.deadline=dl; }
   else if(goalDraftType==='rs_ramp'){ goal.target=40; }
   else if(goalDraftType==='streak'){ goal.target=num('gfTarget')||30; }
+  else if(goalDraftType==='lift'){ const exn=(document.getElementById('gfExercise').value||'').trim(); if(!exn){toast('Enter an exercise');return;} const tg=num('gfTarget'); if(tg==null){toast('Enter a target weight');return;} goal.exercise=exn; goal.target=tg; }
   else { const lab=(document.getElementById('gfLabel').value||'').trim(); if(!lab){toast('Name your goal');return;} goal.label=lab; goal.target=num('gfTarget')||100; goal.current=num('gfCurrent')||0; goal.unit=(document.getElementById('gfUnit').value||'').trim(); }
   getGame().goals[slot]=goal;
   goalWallOpen=false;
   saveState(); document.getElementById('goalModal').classList.remove('open'); renderAll(); toast('Goal set 🎯');
 }
 function clearGoal(){ const slot=document.getElementById('goalModal').dataset.slot||'primary'; getGame().goals[slot]=null; goalWallOpen=false; saveState(); document.getElementById('goalModal').classList.remove('open'); renderAll(); }
+
+/* ---------- GYM / WORKOUTS UI ---------- */
+function isSessionPR(name,date){
+  const sessions=exerciseSessions(name); const idx=sessions.findIndex(s=>s.date===date);
+  if(idx<=0) return false;
+  let prev=0; for(let i=0;i<idx;i++) if(sessions[i].best1rm>prev) prev=sessions[i].best1rm;
+  return sessions[idx].best1rm>prev+0.01;
+}
+function renderGym(){
+  const el=document.getElementById('gymContent'); if(!el) return;
+  const date=viewDate; const wo=getWorkout(date); const dt=getLog(date).dayType;
+  const exRows = wo.length ? wo.map(ex=>{
+    const pr = ex.type==='strength' && isSessionPR(ex.name,date);
+    const detail = ex.type==='cardio' ? `${ex.mins||0} min${ex.dist?` · ${ex.dist} mi`:''}`
+      : (ex.sets||[]).map(s=>`${s.reps}×${s.weight}`).join('   ');
+    return `<div class="wo-ex" onclick="openExercise(${ex.id})">
+      <div class="wo-ex-head"><span class="wo-ex-name">${ex.type==='cardio'?'🏃':'🏋'} ${ex.name}${pr?' <span class="pr-badge">PR!</span>':''}</span>
+        <button class="e-del" onclick="event.stopPropagation();deleteExercise(${ex.id})">🗑</button></div>
+      <div class="wo-ex-detail">${detail}</div></div>`;
+  }).join('') : `<p class="muted" style="font-size:0.85rem;padding:0.3rem 0">Nothing logged ${date===currentDate?'today':'this day'} — add your first exercise.</p>`;
+  const names=exerciseNames().filter(n=>exerciseSessions(n).length>0).sort();
+  const recRows = names.length ? names.map(n=>{
+    const sess=exerciseSessions(n); const top=exerciseTopWeight(n); const last=sess[sess.length-1];
+    return `<div class="rec-row"><div class="rec-n">${n}</div><div class="rec-d">PR <b>${top}</b> · last ${last.sets.map(s=>`${s.reps}×${s.weight}`).join(' ')}</div></div>`;
+  }).join('') : `<p class="muted" style="font-size:0.8rem">Your lifts and PRs show up here as you log.</p>`;
+  el.innerHTML=`
+    <div class="card">
+      <div class="card-title">Workout · ${prettyDate(date)} <span class="tac" style="cursor:default">${dt==='rest'?'😴 Rest day':'🏋 Training day'}</span></div>
+      <div id="woList">${exRows}</div>
+      <button class="btn-add" style="width:100%;margin-top:0.6rem" onclick="openExercise(null)">+ Add exercise</button>
+    </div>
+    <div class="card"><div class="card-title">Records &amp; Progress</div>${recRows}</div>`;
+}
+let exDraft=null;
+function openExercise(id){
+  const wo=getWorkout(viewDate);
+  if(id!=null){ const ex=wo.find(e=>e.id===id); if(!ex) return; exDraft=JSON.parse(JSON.stringify(ex)); }
+  else exDraft={ name:'', type:'strength', sets:[{reps:'',weight:''}], mins:'', dist:'' };
+  document.getElementById('exModalTitle').textContent = id!=null?'Edit exercise':'Add exercise';
+  document.getElementById('exDelete').style.display = id!=null?'block':'none';
+  renderExerciseModal();
+  document.getElementById('exModal').classList.add('open');
+  setTimeout(()=>{ const n=document.getElementById('exName'); if(n && !exDraft.name) n.focus(); },100);
+}
+function setExType(t){ exDraft.type=t; if(t==='strength' && (!exDraft.sets||!exDraft.sets.length)) exDraft.sets=[{reps:'',weight:''}]; renderExerciseModal(); }
+function addSet(){ const l=exDraft.sets[exDraft.sets.length-1]; exDraft.sets.push({reps:l?l.reps:'', weight:l?l.weight:''}); renderExerciseModal(); }
+function delSet(i){ exDraft.sets.splice(i,1); if(!exDraft.sets.length) exDraft.sets.push({reps:'',weight:''}); renderExerciseModal(); }
+function copyLast(){ const ls=lastSession(exDraft.name, viewDate); if(ls){ exDraft.sets=ls.sets.map(s=>({reps:s.reps,weight:s.weight})); renderExerciseModal(); } }
+function updateLastHint(){ const el=document.getElementById('lastHint'); if(!el) return;
+  if(exDraft.type!=='strength' || !exDraft.name){ el.innerHTML=''; return; }
+  const ls=lastSession(exDraft.name, viewDate);
+  el.innerHTML = ls ? `<span>Last: ${ls.sets.map(s=>`${s.reps}×${s.weight}`).join(' ')}</span> <button class="btn-tmpl" style="padding:2px 9px" onclick="copyLast()">copy →</button>` : '';
+}
+function renderExerciseModal(){
+  const recents=exerciseNames();
+  let body='';
+  if(exDraft.type==='strength'){
+    body=`<div id="lastHint" class="last-hint"></div>`;
+    body+=exDraft.sets.map((s,i)=>`<div class="set-row"><span class="set-n">${i+1}</span>
+      <input type="number" inputmode="numeric" placeholder="reps" value="${s.reps}" oninput="exDraft.sets[${i}].reps=this.value">
+      <span class="set-x">×</span>
+      <input type="number" inputmode="decimal" placeholder="lbs" value="${s.weight}" oninput="exDraft.sets[${i}].weight=this.value">
+      <button class="set-del" onclick="delSet(${i})">✕</button></div>`).join('');
+    body+=`<button class="btn-tmpl" style="width:100%;margin-top:0.4rem" onclick="addSet()">+ Add set</button>`;
+  } else {
+    body=`<div class="gf"><label>Duration (min)</label><input type="number" inputmode="numeric" value="${exDraft.mins||''}" oninput="exDraft.mins=this.value"></div>
+          <div class="gf"><label>Distance (mi, optional)</label><input type="number" inputmode="decimal" value="${exDraft.dist||''}" oninput="exDraft.dist=this.value"></div>`;
+  }
+  document.getElementById('exBody').innerHTML=`
+    <input list="exNames" id="exName" class="ex-name-input" placeholder="Exercise name" value="${(exDraft.name||'').replace(/"/g,'&quot;')}" oninput="exDraft.name=this.value; updateLastHint();">
+    <datalist id="exNames">${recents.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist>
+    <div class="daytype-toggle" id="exType" style="margin:0.7rem 0">
+      <button data-xt="strength" class="${exDraft.type==='strength'?'on':''}">🏋 Strength</button>
+      <button data-xt="cardio" class="${exDraft.type==='cardio'?'on':''}">🏃 Cardio</button>
+    </div>${body}`;
+  updateLastHint();
+}
+function saveExercise(){
+  const name=(document.getElementById('exName').value||'').trim();
+  if(!name){ toast('Name the exercise'); return; }
+  const date=viewDate; const wo=getWorkout(date); let entry;
+  if(exDraft.type==='strength'){
+    const sets=exDraft.sets.map(s=>({reps:parseFloat(s.reps)||0, weight:parseFloat(s.weight)||0})).filter(s=>s.reps>0||s.weight>0);
+    if(!sets.length){ toast('Add at least one set'); return; }
+    entry={ name, type:'strength', sets };
+  } else {
+    const mins=parseFloat(exDraft.mins)||0; if(!mins){ toast('Enter a duration'); return; }
+    entry={ name, type:'cardio', mins, dist:parseFloat(exDraft.dist)||0 };
+  }
+  if(exDraft.id!=null){ const i=wo.findIndex(e=>e.id===exDraft.id); entry.id=exDraft.id; if(i>=0) wo[i]=entry; else wo.push(entry); }
+  else { entry.id=state._seq++; wo.push(entry); }
+  saveState();
+  document.getElementById('exModal').classList.remove('open');
+  const pr = entry.type==='strength' && isSessionPR(name,date);
+  renderGym(); renderAll();
+  if(pr) toast(`🏆 New PR on ${name}! +50 XP`); else toast('Logged 💪');
+}
+function deleteExercise(id){ const wo=getWorkout(viewDate); const i=wo.findIndex(e=>e.id===id); if(i>=0){ wo.splice(i,1); saveState(); renderGym(); renderAll(); toast('Removed'); } }
 
 /* ---------- TOAST ---------- */
 let toastTimer=null;
@@ -2260,6 +2454,11 @@ function bindEvents(){
   document.getElementById('goalClear').onclick=clearGoal;
   document.getElementById('goalTypes').addEventListener('click', e=>{ const b=e.target.closest('[data-gt]'); if(b) setGoalType(b.dataset.gt); });
   document.getElementById('goalModal').addEventListener('click', e=>{ if(e.target.id==='goalModal' && document.getElementById('goalClose').style.display!=='none'){ goalWallOpen=false; document.getElementById('goalModal').classList.remove('open'); } });
+  document.getElementById('exClose').onclick=()=>document.getElementById('exModal').classList.remove('open');
+  document.getElementById('exSave').onclick=saveExercise;
+  document.getElementById('exDelete').onclick=()=>{ if(exDraft&&exDraft.id!=null) deleteExercise(exDraft.id); document.getElementById('exModal').classList.remove('open'); };
+  document.getElementById('exModal').addEventListener('click', e=>{ if(e.target.id==='exModal') document.getElementById('exModal').classList.remove('open'); });
+  document.getElementById('exBody').addEventListener('click', e=>{ const b=e.target.closest('[data-xt]'); if(b) setExType(b.dataset.xt); });
   window.addEventListener('resize', ()=>{ if(document.getElementById('view-trends').classList.contains('active')) renderWeightChart(); });
 }
 
