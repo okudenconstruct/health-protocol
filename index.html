@@ -434,6 +434,18 @@ input, select { font-family: inherit; }
 .set-x { color: var(--text-dim); }
 .set-del { width: 30px; height: 30px; border-radius: 7px; background: var(--bg-card-2); border: 1px solid var(--border-soft); color: var(--text-dim); flex-shrink: 0; }
 #exType button { font-size: 0.82rem; padding: 0.5rem 0.9rem; }
+.wo-ex { display: flex; gap: 0.6rem; align-items: flex-start; }
+.wo-check { width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px; border: 2px solid var(--border); display: grid; place-items: center; color: #fff; font-size: 0.85rem; margin-top: 1px; }
+.wo-ex.is-done .wo-check { background: var(--success); border-color: var(--success); }
+.wo-ex-body { flex: 1; min-width: 0; }
+.wo-ex.is-done .wo-ex-name { color: var(--text-muted); }
+.wo-progress { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem; }
+.wo-progress-bar { flex: 1; height: 8px; border-radius: 999px; background: var(--bg-input); overflow: hidden; }
+.wo-progress-bar > span { display: block; height: 100%; background: linear-gradient(90deg,var(--accent),var(--success)); transition: width 0.4s; }
+.wo-progress-txt { font-family: var(--mono); font-size: 0.72rem; color: var(--text-muted); }
+.routine-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.routine-btn { background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 0.7rem; font-weight: 700; font-size: 0.85rem; color: var(--text); }
+.routine-btn:active { transform: scale(0.97); }
 </style>
 </head>
 <body>
@@ -685,6 +697,16 @@ input, select { font-family: inherit; }
       <button class="wm-cancel" id="amtCancel">Cancel</button>
       <button class="wm-confirm" id="amtSave" style="background:var(--accent)">Set</button>
     </div>
+  </div>
+</div>
+
+<!-- EXERCISE LIBRARY PICKER -->
+<div class="modal-backdrop" id="exLibModal">
+  <div class="modal">
+    <div class="modal-head"><h2>Choose exercise</h2><button class="icon-btn" id="exLibClose">✕</button></div>
+    <div class="modal-search"><input type="text" id="exLibSearch" placeholder="Search exercises…" /></div>
+    <div class="cat-tabs" id="exLibTabs"></div>
+    <div class="food-list" id="exLibList"></div>
   </div>
 </div>
 
@@ -1174,6 +1196,83 @@ const REFERENCE = {
 };
 const REF_TABS = [ {id:'rs',name:'RS Protocol'}, {id:'chol',name:'Cholesterol'}, {id:'reflux',name:'Reflux'}, {id:'liver',name:'Liver'} ];
 
+/* ---------- EXERCISE LIBRARY (machine-first, The Edge Fitness) ---------- */
+const EX_GROUPS = ['Chest','Back','Shoulders','Biceps','Triceps','Legs','Core','Cardio'];
+const EXERCISE_LIB = [
+  // Chest
+  {id:'chest_press_m', name:'Chest Press (machine)', group:'Chest', type:'strength'},
+  {id:'incline_press_m', name:'Incline Chest Press (machine)', group:'Chest', type:'strength'},
+  {id:'pec_deck', name:'Pec Deck / Chest Fly (machine)', group:'Chest', type:'strength'},
+  {id:'cable_fly', name:'Cable Chest Fly', group:'Chest', type:'strength'},
+  {id:'db_bench', name:'Dumbbell Bench Press', group:'Chest', type:'strength'},
+  // Back
+  {id:'lat_pulldown', name:'Lat Pulldown', group:'Back', type:'strength'},
+  {id:'seated_cable_row', name:'Seated Cable Row', group:'Back', type:'strength'},
+  {id:'row_machine', name:'Seated Row (machine)', group:'Back', type:'strength'},
+  {id:'iso_row', name:'Iso-Lateral Row (machine)', group:'Back', type:'strength'},
+  {id:'assisted_pullup', name:'Assisted Pull-up (machine)', group:'Back', type:'strength'},
+  {id:'machine_pullover', name:'Machine Pullover', group:'Back', type:'strength'},
+  {id:'back_ext', name:'Back Extension', group:'Back', type:'strength'},
+  // Shoulders
+  {id:'shoulder_press_m', name:'Shoulder Press (machine)', group:'Shoulders', type:'strength'},
+  {id:'db_shoulder_press', name:'Dumbbell Shoulder Press', group:'Shoulders', type:'strength'},
+  {id:'lat_raise_db', name:'Lateral Raise (dumbbell)', group:'Shoulders', type:'strength'},
+  {id:'lat_raise_m', name:'Lateral Raise (machine)', group:'Shoulders', type:'strength'},
+  {id:'rear_delt_m', name:'Rear Delt Fly (machine)', group:'Shoulders', type:'strength'},
+  {id:'front_raise_db', name:'Front Raise (dumbbell)', group:'Shoulders', type:'strength'},
+  {id:'shrug_db', name:'Dumbbell Shrug', group:'Shoulders', type:'strength'},
+  // Biceps
+  {id:'db_curl', name:'Dumbbell Curl', group:'Biceps', type:'strength'},
+  {id:'hammer_curl', name:'Hammer Curl (dumbbell)', group:'Biceps', type:'strength'},
+  {id:'cable_curl', name:'Cable Curl', group:'Biceps', type:'strength'},
+  {id:'preacher_m', name:'Preacher Curl (machine)', group:'Biceps', type:'strength'},
+  {id:'bicep_curl_m', name:'Bicep Curl (machine)', group:'Biceps', type:'strength'},
+  // Triceps
+  {id:'tricep_pushdown', name:'Tricep Pushdown (cable)', group:'Triceps', type:'strength'},
+  {id:'oh_tricep_cable', name:'Overhead Tricep Ext (cable)', group:'Triceps', type:'strength'},
+  {id:'tricep_dip_m', name:'Tricep Dip (machine)', group:'Triceps', type:'strength'},
+  {id:'tricep_ext_m', name:'Tricep Extension (machine)', group:'Triceps', type:'strength'},
+  // Legs
+  {id:'leg_press', name:'Leg Press (machine)', group:'Legs', type:'strength'},
+  {id:'hack_squat', name:'Hack Squat (machine)', group:'Legs', type:'strength'},
+  {id:'leg_ext', name:'Leg Extension (machine)', group:'Legs', type:'strength'},
+  {id:'leg_curl', name:'Leg Curl (machine)', group:'Legs', type:'strength'},
+  {id:'hip_abduction', name:'Hip Abduction (machine)', group:'Legs', type:'strength'},
+  {id:'hip_adduction', name:'Hip Adduction (machine)', group:'Legs', type:'strength'},
+  {id:'glute_m', name:'Glute Machine', group:'Legs', type:'strength'},
+  {id:'calf_raise_m', name:'Calf Raise (machine)', group:'Legs', type:'strength'},
+  // Core
+  {id:'cable_crunch', name:'Cable Crunch', group:'Core', type:'strength'},
+  {id:'ab_crunch_m', name:'Ab Crunch (machine)', group:'Core', type:'strength'},
+  {id:'hanging_leg_raise', name:'Hanging Leg Raise', group:'Core', type:'strength'},
+  {id:'russian_twist', name:'Russian Twist', group:'Core', type:'strength'},
+  {id:'plank', name:'Plank', group:'Core', type:'strength'},
+  {id:'rotary_torso', name:'Rotary Torso (machine)', group:'Core', type:'strength'},
+  // Cardio
+  {id:'treadmill', name:'Treadmill', group:'Cardio', type:'cardio'},
+  {id:'elliptical', name:'Elliptical', group:'Cardio', type:'cardio'},
+  {id:'stairmaster', name:'Stairmaster', group:'Cardio', type:'cardio'},
+  {id:'bike', name:'Stationary Bike', group:'Cardio', type:'cardio'},
+  {id:'rower', name:'Rowing Machine', group:'Cardio', type:'cardio'},
+  {id:'kickboxing', name:'Kickboxing', group:'Cardio', type:'cardio'}
+];
+const EX_MAP = Object.fromEntries(EXERCISE_LIB.map(e=>[e.id,e]));
+/* Preset routine days — ordered exercises with suggested sets×reps. */
+const ROUTINES = [
+  {id:'push', name:'Push Day', icon:'🔼', items:[
+    {ex:'chest_press_m',sets:3,reps:10},{ex:'incline_press_m',sets:3,reps:10},{ex:'pec_deck',sets:3,reps:12},
+    {ex:'shoulder_press_m',sets:3,reps:10},{ex:'lat_raise_m',sets:3,reps:15},{ex:'tricep_pushdown',sets:3,reps:12},{ex:'tricep_ext_m',sets:3,reps:12} ]},
+  {id:'pull', name:'Pull Day', icon:'🔽', items:[
+    {ex:'lat_pulldown',sets:3,reps:10},{ex:'seated_cable_row',sets:3,reps:10},{ex:'iso_row',sets:3,reps:10},
+    {ex:'rear_delt_m',sets:3,reps:15},{ex:'db_curl',sets:3,reps:12},{ex:'cable_curl',sets:3,reps:12},{ex:'hammer_curl',sets:3,reps:12} ]},
+  {id:'legs', name:'Leg Day', icon:'🦵', items:[
+    {ex:'leg_press',sets:4,reps:10},{ex:'hack_squat',sets:3,reps:10},{ex:'leg_ext',sets:3,reps:12},
+    {ex:'leg_curl',sets:3,reps:12},{ex:'hip_abduction',sets:3,reps:15},{ex:'hip_adduction',sets:3,reps:15},{ex:'calf_raise_m',sets:4,reps:15} ]},
+  {id:'core', name:'Core Day', icon:'🎯', items:[
+    {ex:'cable_crunch',sets:3,reps:15},{ex:'ab_crunch_m',sets:3,reps:15},{ex:'hanging_leg_raise',sets:3,reps:12},
+    {ex:'russian_twist',sets:3,reps:20},{ex:'rotary_torso',sets:3,reps:15},{ex:'plank',sets:3,reps:1} ]}
+];
+
 /* ---------- STATE ---------- */
 const DEFAULT_STATE = {
   settings: { rsTarget:20, rsGoal:40, rsBaseline:18, fiberTarget:35, satCap:15, height:72, leanGoal:null, rampLevelStart:null },
@@ -1416,10 +1515,11 @@ function dayXp(date){
 /* ----- workouts ----- */
 function getWorkout(date){ if(!state.workouts) state.workouts={}; if(!state.workouts[date]) state.workouts[date]=[]; return state.workouts[date]; }
 function est1RM(reps,weight){ return (weight||0)*(1+(reps||0)/30); } // Epley
+function exLogged(ex){ return ex.type==='cardio' ? (ex.mins>0) : (ex.sets||[]).some(s=>s.weight>0||s.reps>0); }
 function exerciseNames(){ const s=new Set(); Object.values(state.workouts||{}).forEach(arr=>arr.forEach(ex=>s.add(ex.name))); return [...s]; }
 function exerciseSessions(name){ // sorted list of {date, sets, best1rm, topWeight}
   const out=[]; Object.keys(state.workouts||{}).sort().forEach(d=>{ (state.workouts[d]||[]).forEach(ex=>{
-    if(ex.type==='strength' && ex.name.toLowerCase()===name.toLowerCase()){
+    if(ex.type==='strength' && ex.name.toLowerCase()===name.toLowerCase() && exLogged(ex)){
       let best=0, top=0; (ex.sets||[]).forEach(s=>{ const e=est1RM(s.reps,s.weight); if(e>best)best=e; if((s.weight||0)>top)top=s.weight; });
       out.push({date:d, sets:ex.sets||[], best1rm:best, topWeight:top});
     }}); });
@@ -1431,7 +1531,7 @@ function lastSession(name, beforeDate){ const s=exerciseSessions(name).filter(x=
 function workoutXp(){
   let xp=0; const running={};
   Object.keys(state.workouts||{}).sort().forEach(d=>{
-    const exs=state.workouts[d]||[]; if(exs.length) xp+=15;
+    const exs=(state.workouts[d]||[]).filter(exLogged); if(exs.length) xp+=15;
     exs.forEach(ex=>{ xp+=8;
       if(ex.type==='strength'){ let sb=0; (ex.sets||[]).forEach(s=>{ xp+=1; const e=est1RM(s.reps,s.weight); if(e>sb)sb=e; });
         const k=ex.name.toLowerCase(); if(sb>(running[k]||0)+0.01){ if(running[k]) xp+=50; running[k]=sb; } }
@@ -1442,7 +1542,7 @@ function workoutXp(){
 }
 function workoutStats(){
   const running={}; let strSess=0, prs=0, cardioSess=0, cardioMin=0; let anyWo=false;
-  Object.keys(state.workouts||{}).sort().forEach(d=>{ const exs=state.workouts[d]||[]; if(exs.length)anyWo=true;
+  Object.keys(state.workouts||{}).sort().forEach(d=>{ const exs=(state.workouts[d]||[]).filter(exLogged); if(exs.length)anyWo=true;
     let hasStr=false,hasCar=false;
     exs.forEach(ex=>{ if(ex.type==='strength'){ hasStr=true; let sb=0; (ex.sets||[]).forEach(s=>{const e=est1RM(s.reps,s.weight); if(e>sb)sb=e;}); const k=ex.name.toLowerCase(); if(sb>(running[k]||0)+0.01){ if(running[k])prs++; running[k]=sb; } }
       else { hasCar=true; cardioMin+=ex.mins||0; } });
@@ -2292,15 +2392,23 @@ function isSessionPR(name,date){
 function renderGym(){
   const el=document.getElementById('gymContent'); if(!el) return;
   const date=viewDate; const wo=getWorkout(date); const dt=getLog(date).dayType;
+  const done=wo.filter(exLogged).length, total=wo.length;
+  const progress = total ? `<div class="wo-progress"><div class="wo-progress-bar"><span style="width:${Math.round(done/total*100)}%"></span></div><div class="wo-progress-txt">${done}/${total} done</div></div>` : '';
   const exRows = wo.length ? wo.map(ex=>{
-    const pr = ex.type==='strength' && isSessionPR(ex.name,date);
-    const detail = ex.type==='cardio' ? `${ex.mins||0} min${ex.dist?` · ${ex.dist} mi`:''}`
-      : (ex.sets||[]).map(s=>`${s.reps}×${s.weight}`).join('   ');
-    return `<div class="wo-ex" onclick="openExercise(${ex.id})">
-      <div class="wo-ex-head"><span class="wo-ex-name">${ex.type==='cardio'?'🏃':'🏋'} ${ex.name}${pr?' <span class="pr-badge">PR!</span>':''}</span>
-        <button class="e-del" onclick="event.stopPropagation();deleteExercise(${ex.id})">🗑</button></div>
-      <div class="wo-ex-detail">${detail}</div></div>`;
-  }).join('') : `<p class="muted" style="font-size:0.85rem;padding:0.3rem 0">Nothing logged ${date===currentDate?'today':'this day'} — add your first exercise.</p>`;
+    const isDone=exLogged(ex);
+    const pr = isDone && ex.type==='strength' && isSessionPR(ex.name,date);
+    const detail = isDone
+      ? (ex.type==='cardio' ? `${ex.mins||0} min${ex.dist?` · ${ex.dist} mi`:''}` : (ex.sets||[]).map(s=>`${s.reps}×${s.weight}`).join('   '))
+      : (ex.target ? `suggested ${ex.target.sets}×${ex.target.reps}` : 'tap to log');
+    return `<div class="wo-ex ${isDone?'is-done':''}" onclick="openExercise(${ex.id})">
+      <div class="wo-check">${isDone?'✓':''}</div>
+      <div class="wo-ex-body">
+        <div class="wo-ex-head"><span class="wo-ex-name">${ex.type==='cardio'?'🏃':'🏋'} ${ex.name}${pr?' <span class="pr-badge">PR!</span>':''}</span>
+          <button class="e-del" onclick="event.stopPropagation();deleteExercise(${ex.id})">🗑</button></div>
+        <div class="wo-ex-detail">${detail}</div>
+      </div></div>`;
+  }).join('') : `<p class="muted" style="font-size:0.85rem;padding:0.3rem 0">No workout yet — start a routine below, or add an exercise.</p>`;
+  const routineBtns = ROUTINES.map(r=>`<button class="routine-btn" onclick="startRoutine('${r.id}')">${r.icon} ${r.name}</button>`).join('');
   const names=exerciseNames().filter(n=>exerciseSessions(n).length>0).sort();
   const recRows = names.length ? names.map(n=>{
     const sess=exerciseSessions(n); const top=exerciseTopWeight(n); const last=sess[sess.length-1];
@@ -2308,18 +2416,69 @@ function renderGym(){
   }).join('') : `<p class="muted" style="font-size:0.8rem">Your lifts and PRs show up here as you log.</p>`;
   el.innerHTML=`
     <div class="card">
-      <div class="card-title">Workout · ${prettyDate(date)} <span class="tac" style="cursor:default">${dt==='rest'?'😴 Rest day':'🏋 Training day'}</span></div>
+      <div class="card-title">Workout · ${prettyDate(date)} <span class="tac" style="cursor:default">${dt==='rest'?'😴 Rest':'🏋 Training'}</span></div>
+      ${progress}
       <div id="woList">${exRows}</div>
-      <button class="btn-add" style="width:100%;margin-top:0.6rem" onclick="openExercise(null)">+ Add exercise</button>
+      <button class="btn-add" style="width:100%;margin-top:0.6rem" onclick="openExLib()">+ Add exercise</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Start a Routine</div>
+      <div class="routine-grid">${routineBtns}</div>
     </div>
     <div class="card"><div class="card-title">Records &amp; Progress</div>${recRows}</div>`;
 }
-let exDraft=null;
-function openExercise(id){
+function startRoutine(id){
+  const r=ROUTINES.find(x=>x.id===id); if(!r) return;
   const wo=getWorkout(viewDate);
-  if(id!=null){ const ex=wo.find(e=>e.id===id); if(!ex) return; exDraft=JSON.parse(JSON.stringify(ex)); }
-  else exDraft={ name:'', type:'strength', sets:[{reps:'',weight:''}], mins:'', dist:'' };
-  document.getElementById('exModalTitle').textContent = id!=null?'Edit exercise':'Add exercise';
+  r.items.forEach(it=>{ const lib=EX_MAP[it.ex]; if(!lib) return;
+    const e={ id:state._seq++, name:lib.name, type:lib.type, exId:lib.id, target:{sets:it.sets,reps:it.reps} };
+    if(lib.type==='strength') e.sets=[]; else e.mins=0;
+    wo.push(e);
+  });
+  getLog(viewDate).dayType='training';
+  saveState(); renderGym(); renderAll(); toast(`${r.name} loaded — check 'em off 💪`);
+}
+/* ----- exercise library picker ----- */
+let exLibGroup='all';
+function openExLib(){ exLibGroup='all'; document.getElementById('exLibSearch').value=''; renderExLibTabs(); renderExLibList(''); document.getElementById('exLibModal').classList.add('open'); setTimeout(()=>document.getElementById('exLibSearch').focus(),100); }
+function renderExLibTabs(){
+  const tabs=[{id:'all',n:'All'}].concat(EX_GROUPS.map(g=>({id:g,n:g}))).concat([{id:'mine',n:'★ Mine'}]);
+  document.getElementById('exLibTabs').innerHTML=tabs.map(t=>`<button class="${t.id===exLibGroup?'active':''}" onclick="setExLibGroup('${t.id}')">${t.n}</button>`).join('');
+}
+function setExLibGroup(g){ exLibGroup=g; renderExLibTabs(); renderExLibList(document.getElementById('exLibSearch').value); }
+function renderExLibList(q){
+  q=(q||'').toLowerCase().trim();
+  let list;
+  if(exLibGroup==='mine'){ list=exerciseNames().filter(n=>!EXERCISE_LIB.some(e=>e.name.toLowerCase()===n.toLowerCase())).map(n=>({id:n,name:n,group:'custom',type:'strength',custom:true})); }
+  else { list=EXERCISE_LIB.filter(e=> exLibGroup==='all'||e.group===exLibGroup); }
+  if(q) list=list.filter(e=>e.name.toLowerCase().includes(q));
+  let rows=list.map(e=>`<div class="food-item"><div class="fi-main"><div class="fi-name">${e.type==='cardio'?'🏃':'🏋'} ${e.name}</div><div class="fi-serv">${e.group||''}</div></div><button class="fi-add" onclick="pickLibExercise('c:${encodeURIComponent(e.name)}','${e.type}')">+</button></div>`).join('');
+  const createRow = `<div class="food-item"><div class="fi-main"><div class="fi-name">➕ ${q?`Add "${q}"`:'Custom exercise'}</div></div><button class="fi-add" onclick="pickLibExercise('c:${encodeURIComponent(q)}','strength')">+</button></div>`;
+  document.getElementById('exLibList').innerHTML = (rows||'') + createRow;
+}
+function pickLibExercise(key,type){
+  document.getElementById('exLibModal').classList.remove('open');
+  const nm = key.startsWith('c:') ? decodeURIComponent(key.slice(2)) : (EX_MAP[key]?EX_MAP[key].name:'');
+  openExercise(null, { name:nm, type:type||'strength' });
+}
+let exDraft=null;
+function openExercise(id, preset){
+  const wo=getWorkout(viewDate);
+  if(id!=null){
+    const ex=wo.find(e=>e.id===id); if(!ex) return;
+    exDraft=JSON.parse(JSON.stringify(ex));
+    if(exDraft.type==='strength' && (!exDraft.sets || !exDraft.sets.length)){
+      const ls=lastSession(exDraft.name, viewDate);
+      if(ls) exDraft.sets=ls.sets.map(s=>({reps:s.reps,weight:s.weight}));
+      else if(exDraft.target) exDraft.sets=Array.from({length:exDraft.target.sets||1},()=>({reps:exDraft.target.reps||'',weight:''}));
+      else exDraft.sets=[{reps:'',weight:''}];
+    }
+    if(exDraft.type==='cardio' && exDraft.mins==null) exDraft.mins='';
+  } else {
+    exDraft={ name:preset?preset.name:'', type:preset?preset.type:'strength', sets:[{reps:'',weight:''}], mins:'', dist:'' };
+    if(preset && preset.type==='strength' && preset.name){ const ls=lastSession(preset.name, viewDate); if(ls) exDraft.sets=ls.sets.map(s=>({reps:s.reps,weight:s.weight})); }
+  }
+  document.getElementById('exModalTitle').textContent = (exDraft.name||'Add exercise');
   document.getElementById('exDelete').style.display = id!=null?'block':'none';
   renderExerciseModal();
   document.getElementById('exModal').classList.add('open');
@@ -2370,6 +2529,8 @@ function saveExercise(){
     const mins=parseFloat(exDraft.mins)||0; if(!mins){ toast('Enter a duration'); return; }
     entry={ name, type:'cardio', mins, dist:parseFloat(exDraft.dist)||0 };
   }
+  if(exDraft.exId) entry.exId=exDraft.exId;
+  if(exDraft.target) entry.target=exDraft.target;
   if(exDraft.id!=null){ const i=wo.findIndex(e=>e.id===exDraft.id); entry.id=exDraft.id; if(i>=0) wo[i]=entry; else wo.push(entry); }
   else { entry.id=state._seq++; wo.push(entry); }
   saveState();
@@ -2459,6 +2620,9 @@ function bindEvents(){
   document.getElementById('exDelete').onclick=()=>{ if(exDraft&&exDraft.id!=null) deleteExercise(exDraft.id); document.getElementById('exModal').classList.remove('open'); };
   document.getElementById('exModal').addEventListener('click', e=>{ if(e.target.id==='exModal') document.getElementById('exModal').classList.remove('open'); });
   document.getElementById('exBody').addEventListener('click', e=>{ const b=e.target.closest('[data-xt]'); if(b) setExType(b.dataset.xt); });
+  document.getElementById('exLibClose').onclick=()=>document.getElementById('exLibModal').classList.remove('open');
+  document.getElementById('exLibModal').addEventListener('click', e=>{ if(e.target.id==='exLibModal') document.getElementById('exLibModal').classList.remove('open'); });
+  document.getElementById('exLibSearch').addEventListener('input', e=> renderExLibList(e.target.value));
   window.addEventListener('resize', ()=>{ if(document.getElementById('view-trends').classList.contains('active')) renderWeightChart(); });
 }
 
