@@ -446,6 +446,14 @@ input, select { font-family: inherit; }
 .routine-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 .routine-btn { background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 0.7rem; font-weight: 700; font-size: 0.85rem; color: var(--text); }
 .routine-btn:active { transform: scale(0.97); }
+.sum-row { padding: 0.55rem 0; border-top: 1px solid var(--border-soft); }
+.sum-row:first-child { border-top: none; }
+.sum-top { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.sum-n { font-weight: 700; font-size: 0.9rem; }
+.sum-pr { font-family: var(--mono); font-size: 0.72rem; color: var(--warning); font-weight: 700; flex-shrink: 0; }
+.sum-last { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--mono); font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+.sum-date { color: var(--text-dim); flex-shrink: 0; }
+.sum-grp { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -1526,6 +1534,15 @@ function exerciseSessions(name){ // sorted list of {date, sets, best1rm, topWeig
   return out;
 }
 function exerciseTopWeight(name){ let t=0; exerciseSessions(name).forEach(s=>{ if(s.topWeight>t)t=s.topWeight; }); return t; }
+/* Compact set formatting — collapses uniform sets (same weight/reps) to "3×10 @ 200". */
+function formatSets(sets){
+  if(!sets||!sets.length) return '';
+  const w0=sets[0].weight, r0=sets[0].reps;
+  const sameW=sets.every(s=>s.weight===w0), sameR=sets.every(s=>s.reps===r0);
+  if(sameW&&sameR) return `${sets.length}×${r0} @ ${w0} lbs`;
+  if(sameW) return `${w0} lbs: ${sets.map(s=>s.reps).join(', ')} reps`;
+  return sets.map(s=>`${s.reps}×${s.weight}`).join('  ');
+}
 function lastSession(name, beforeDate){ const s=exerciseSessions(name).filter(x=> !beforeDate || x.date<beforeDate); return s.length?s[s.length-1]:null; }
 /* Deterministic workout XP: trained-day + per-exercise + per-set + PR bonuses. */
 function workoutXp(){
@@ -2409,11 +2426,16 @@ function renderGym(){
       </div></div>`;
   }).join('') : `<p class="muted" style="font-size:0.85rem;padding:0.3rem 0">No workout yet — start a routine below, or add an exercise.</p>`;
   const routineBtns = ROUTINES.map(r=>`<button class="routine-btn" onclick="startRoutine('${r.id}')">${r.icon} ${r.name}</button>`).join('');
-  const names=exerciseNames().filter(n=>exerciseSessions(n).length>0).sort();
+  const names=exerciseNames().filter(n=>exerciseSessions(n).length>0);
+  names.sort((a,b)=> exerciseSessions(b).slice(-1)[0].date.localeCompare(exerciseSessions(a).slice(-1)[0].date));
   const recRows = names.length ? names.map(n=>{
-    const sess=exerciseSessions(n); const top=exerciseTopWeight(n); const last=sess[sess.length-1];
-    return `<div class="rec-row"><div class="rec-n">${n}</div><div class="rec-d">PR <b>${top}</b> · last ${last.sets.map(s=>`${s.reps}×${s.weight}`).join(' ')}</div></div>`;
-  }).join('') : `<p class="muted" style="font-size:0.8rem">Your lifts and PRs show up here as you log.</p>`;
+    const sess=exerciseSessions(n); const last=sess[sess.length-1]; const top=exerciseTopWeight(n);
+    const g=(EXERCISE_LIB.find(e=>e.name.toLowerCase()===n.toLowerCase())||{}).group||'';
+    return `<div class="sum-row">
+      <div class="sum-top"><span class="sum-n">${n}</span><span class="sum-pr">PR ${top}</span></div>
+      <div class="sum-last"><span>${formatSets(last.sets)}</span><span class="sum-date">${last.date.slice(5)}</span></div>
+      ${g?`<div class="sum-grp">${g}</div>`:''}</div>`;
+  }).join('') : `<p class="muted" style="font-size:0.8rem">Log a workout — each exercise's last sets &amp; PR show up here.</p>`;
   el.innerHTML=`
     <div class="card">
       <div class="card-title">Workout · ${prettyDate(date)} <span class="tac" style="cursor:default">${dt==='rest'?'😴 Rest':'🏋 Training'}</span></div>
@@ -2425,7 +2447,7 @@ function renderGym(){
       <div class="card-title">Start a Routine</div>
       <div class="routine-grid">${routineBtns}</div>
     </div>
-    <div class="card"><div class="card-title">Records &amp; Progress</div>${recRows}</div>`;
+    <div class="card"><div class="card-title">Exercise Summary <span class="tac" style="cursor:default">last set · PR</span></div>${recRows}</div>`;
 }
 function startRoutine(id){
   const r=ROUTINES.find(x=>x.id===id); if(!r) return;
