@@ -1373,8 +1373,16 @@ window.Cloud = { enabled:false, init(){}, push(){} };
 function setSyncUI(connected){
   const pill=document.getElementById('syncPill'), txt=document.getElementById('syncText');
   if(!pill) return;
-  if(connected){ pill.classList.remove('local'); pill.classList.add('cloud'); txt.textContent='synced'; }
-  else { pill.classList.add('local'); pill.classList.remove('cloud'); txt.textContent='local'; }
+  if(connected){
+    pill.classList.remove('local'); pill.classList.add('cloud');
+    txt.textContent='synced'; pill.style.cursor='default'; pill.onclick=null;
+  } else {
+    pill.classList.add('local'); pill.classList.remove('cloud');
+    const canAuth = window.Cloud && window.Cloud.authReady;
+    txt.textContent = canAuth ? 'sign in' : 'local';
+    pill.style.cursor = canAuth ? 'pointer' : 'default';
+    pill.onclick = canAuth ? ()=>window.Cloud.signIn() : null;
+  }
 }
 /* Replace local state with an incoming remote snapshot and refresh the UI. */
 function applyRemoteState(remote){
@@ -2750,9 +2758,12 @@ function openSettings(){
   document.getElementById('setSatCap').value=s.satCap;
   document.getElementById('setHeight').value=s.height;
   document.getElementById('setLeanGoal').value=s.leanGoal||'';
-  document.getElementById('syncStatus').textContent = (window.Cloud && Cloud.enabled)
-    ? 'Connected — changes sync automatically across devices.'
-    : 'Local only on this device. Cloud sync (Firebase) gets enabled in the next build step.';
+  const u = window.Cloud && window.Cloud.user;
+  document.getElementById('syncStatus').innerHTML = u
+    ? `Signed in as <b>${u.email||u.name||'you'}</b> — syncing privately across your devices.
+       <button class="btn-tmpl" style="margin-top:0.5rem" onclick="Cloud.signOut()">Sign out</button>`
+    : `<b>Not signed in</b> — your data is only on this device. Sign in to sync privately across your phone and laptop.
+       <button class="btn-primary" style="margin-top:0.5rem" onclick="Cloud.signIn()">Sign in with Google</button>`;
   document.getElementById('settingsModal').classList.add('open');
 }
 function saveSettings(){
@@ -2838,7 +2849,8 @@ document.addEventListener('DOMContentLoaded', init);
 <!-- ============ FIREBASE CLOUD SYNC (Phase 6) ============ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBoka43fZK0RIyJNrwfONn7x42IRTr0F8I",
@@ -2850,40 +2862,71 @@ const firebaseConfig = {
   measurementId: "G-1V19MBPB4X"
 };
 
-const DOC_ID = 'steve-main';                 // single shared document for this user
+const LEGACY_DOC = 'steve-main';             // pre-auth public doc (migrated on first sign-in)
 const CLIENT_ID = (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'c'+Date.now();
 
 try {
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-  const ref = doc(db, 'appdata', DOC_ID);
-  let lastApplied = 0;
+  const app  = initializeApp(firebaseConfig);
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
+  window.Cloud.authReady = true;
 
-  window.Cloud.enabled = true;
-  window.Cloud.push = function(s){
-    setDoc(ref, { json: JSON.stringify(s), updatedAt: s.updatedAt || Date.now(), client: CLIENT_ID })
-      .catch(err => console.warn('cloud push failed', err));
-  };
-  // Write a standalone collaborative list (read/edited by list.html via the share link).
+  /* Shared shopping lists stay public (no login) so family can edit via link. */
   window.Cloud.saveSharedList = async function(listId, data){
     await setDoc(doc(db, 'sharedLists', listId), data);
   };
+  window.Cloud.signIn = async function(){
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+    catch(e){ console.warn('sign-in failed', e); toast(e.code==='auth/popup-blocked' ? 'Allow popups to sign in' : 'Sign-in failed'); }
+  };
+  window.Cloud.signOut = async function(){ try { await signOut(auth); toast('Signed out'); } catch(e){} };
 
-  onSnapshot(ref, snap => {
-    // First run on a fresh project: seed the cloud with whatever is local.
-    if (!snap.exists()) { window.Cloud.push(state); setSyncUI(true); return; }
-    if (snap.metadata.hasPendingWrites) return;        // ignore our own optimistic echo
-    const data = snap.data();
-    if (!data || !data.json) { setSyncUI(true); return; }
-    const remoteUpdated = data.updatedAt || 0;
-    const localUpdated  = state.updatedAt || 0;
-    if (remoteUpdated < localUpdated) { window.Cloud.push(state); setSyncUI(true); return; } // local is newer
-    if (remoteUpdated === lastApplied) { setSyncUI(true); return; }
-    lastApplied = remoteUpdated;
-    try { applyRemoteState(JSON.parse(data.json)); } catch(e){ console.warn('apply remote failed', e); }
-    setSyncUI(true);
-  }, err => { console.warn('cloud listen failed — staying local', err); setSyncUI(false); });
+  let unsub = null, lastApplied = 0;
 
+  onAuthStateChanged(auth, async user => {
+    if (unsub) { unsub(); unsub = null; }
+    if (!user) {
+      window.Cloud.enabled = false; window.Cloud.user = null; window.Cloud.push = function(){};
+      setSyncUI(false); return;
+    }
+    window.Cloud.user = { uid:user.uid, email:user.email, name:user.displayName };
+    const ref = doc(db, 'users', user.uid);
+
+    /* One-time migration: if this account has no doc yet, adopt the legacy public one. */
+    try {
+      const mine = await getDoc(ref);
+      if (!mine.exists()) {
+        const legacy = await getDoc(doc(db, 'appdata', LEGACY_DOC));
+        if (legacy.exists() && legacy.data() && legacy.data().json) {
+          await setDoc(ref, legacy.data());
+          toast('Your data moved to your account ✓');
+        }
+      }
+    } catch(e){ console.warn('migration skipped', e); }
+
+    window.Cloud.push = function(s){
+      setDoc(ref, { json: JSON.stringify(s), updatedAt: s.updatedAt || Date.now(), client: CLIENT_ID })
+        .catch(err => console.warn('cloud push failed', err));
+    };
+    window.Cloud.enabled = true;
+    lastApplied = 0;
+
+    unsub = onSnapshot(ref, snap => {
+      if (!snap.exists()) { window.Cloud.push(state); setSyncUI(true); return; }
+      if (snap.metadata.hasPendingWrites) return;      // ignore our own optimistic echo
+      const data = snap.data();
+      if (!data || !data.json) { setSyncUI(true); return; }
+      const remoteUpdated = data.updatedAt || 0;
+      const localUpdated  = state.updatedAt || 0;
+      if (remoteUpdated < localUpdated) { window.Cloud.push(state); setSyncUI(true); return; } // local is newer
+      if (remoteUpdated === lastApplied) { setSyncUI(true); return; }
+      lastApplied = remoteUpdated;
+      try { applyRemoteState(JSON.parse(data.json)); } catch(e){ console.warn('apply remote failed', e); }
+      setSyncUI(true);
+    }, err => { console.warn('cloud listen failed', err); setSyncUI(false); });
+  });
+
+  setSyncUI(false);
 } catch (e) {
   console.warn('Firebase init failed — running local-only', e);
 }
