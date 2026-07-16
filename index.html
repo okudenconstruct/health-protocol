@@ -86,6 +86,8 @@ input, select { font-family: inherit; }
 .sync-pill .s-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); }
 .sync-pill.local .s-dot { background: var(--warning); }
 .sync-pill.cloud .s-dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.sync-pill.err .s-dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.sync-pill.err { color: var(--danger); }
 
 /* ============ DATE NAV ============ */
 .datenav { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; }
@@ -1370,18 +1372,32 @@ function saveState(){
    stub to a live Firestore connection; until then the app runs fully on localStorage. */
 window.Cloud = { enabled:false, init(){}, push(){} };
 
-function setSyncUI(connected){
+/* state: true|'synced' · false (auto: 'error' if signed in, else 'out') · 'connecting' · 'error' */
+function setSyncUI(state){
   const pill=document.getElementById('syncPill'), txt=document.getElementById('syncText');
   if(!pill) return;
-  if(connected){
-    pill.classList.remove('local'); pill.classList.add('cloud');
-    txt.textContent='synced'; pill.style.cursor='default'; pill.onclick=null;
+  const signedIn = !!(window.Cloud && window.Cloud.user);
+  if(state===true) state='synced';
+  else if(state===false) state = signedIn ? 'error' : 'out';
+  pill.classList.remove('local','cloud','err');
+  pill.onclick=null; pill.style.cursor='default';
+  if(state==='synced'){
+    pill.classList.add('cloud');
+    const who=(window.Cloud.user&&(window.Cloud.user.name||window.Cloud.user.email)||'').split(' ')[0].split('@')[0];
+    txt.textContent = who ? who.toLowerCase() : 'synced';
+    pill.title='Signed in & syncing — tap for account';
+    pill.style.cursor='pointer'; pill.onclick=()=>openSettings();
+  } else if(state==='connecting'){
+    pill.classList.add('local'); txt.textContent='syncing…';
+  } else if(state==='error'){
+    pill.classList.add('err'); txt.textContent='sync error';
+    pill.title='Signed in, but the database rejected sync — check Firestore rules';
+    pill.style.cursor='pointer'; pill.onclick=()=>openSettings();
   } else {
-    pill.classList.add('local'); pill.classList.remove('cloud');
+    pill.classList.add('local');
     const canAuth = window.Cloud && window.Cloud.authReady;
     txt.textContent = canAuth ? 'sign in' : 'local';
-    pill.style.cursor = canAuth ? 'pointer' : 'default';
-    pill.onclick = canAuth ? ()=>window.Cloud.signIn() : null;
+    if(canAuth){ pill.style.cursor='pointer'; pill.onclick=()=>window.Cloud.signIn(); }
   }
 }
 /* Replace local state with an incoming remote snapshot and refresh the UI. */
@@ -2876,7 +2892,7 @@ try {
     await setDoc(doc(db, 'sharedLists', listId), data);
   };
   window.Cloud.signIn = async function(){
-    try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+    try { const r = await signInWithPopup(auth, new GoogleAuthProvider()); toast(`Signed in as ${r.user.email}`); }
     catch(e){
       console.error('sign-in failed:', e.code, e.message, e);
       const map = {
@@ -2901,6 +2917,7 @@ try {
       setSyncUI(false); return;
     }
     window.Cloud.user = { uid:user.uid, email:user.email, name:user.displayName };
+    setSyncUI('connecting');
     const ref = doc(db, 'users', user.uid);
 
     /* One-time migration: if this account has no doc yet, adopt the legacy public one. */
@@ -2934,7 +2951,11 @@ try {
       lastApplied = remoteUpdated;
       try { applyRemoteState(JSON.parse(data.json)); } catch(e){ console.warn('apply remote failed', e); }
       setSyncUI(true);
-    }, err => { console.warn('cloud listen failed', err); setSyncUI(false); });
+    }, err => {
+      console.error('cloud listen failed:', err.code, err.message);
+      if(err.code==='permission-denied') toast('Sync blocked — Firestore rules need the users/{uid} path');
+      setSyncUI('error');
+    });
   });
 
   setSyncUI(false);
