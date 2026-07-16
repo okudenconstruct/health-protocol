@@ -433,6 +433,13 @@ input, select { font-family: inherit; }
 .set-row input:focus { outline: none; border-color: var(--accent); }
 .set-x { color: var(--text-dim); }
 .set-del { width: 30px; height: 30px; border-radius: 7px; background: var(--bg-card-2); border: 1px solid var(--border-soft); color: var(--text-dim); flex-shrink: 0; }
+.quick-sets { display: flex; align-items: flex-end; gap: 0.4rem; margin-bottom: 0.3rem; }
+.qs-field { flex: 1; min-width: 0; }
+.qs-field label { display: block; font-size: 0.66rem; color: var(--text-muted); margin-bottom: 3px; text-align: center; }
+.qs-field input { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.3rem; color: var(--text); font-family: var(--mono); font-size: 1.15rem; text-align: center; }
+.qs-field input:focus { outline: none; border-color: var(--accent); }
+.qs-op { color: var(--text-dim); font-family: var(--mono); padding-bottom: 0.65rem; }
+.mode-link { background: none; border: none; color: var(--accent); font-size: 0.76rem; padding: 0.4rem 0; cursor: pointer; display: block; }
 #exType button { font-size: 0.82rem; padding: 0.5rem 0.9rem; }
 .wo-ex { display: flex; gap: 0.6rem; align-items: flex-start; }
 .wo-check { width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px; border: 2px solid var(--border); display: grid; place-items: center; color: #fff; font-size: 0.85rem; margin-top: 1px; }
@@ -2484,6 +2491,7 @@ function pickLibExercise(key,type){
   openExercise(null, { name:nm, type:type||'strength' });
 }
 let exDraft=null;
+function setsUniform(sets){ if(!sets||sets.length<=1) return true; return sets.every(s=>s.weight===sets[0].weight && s.reps===sets[0].reps); }
 function openExercise(id, preset){
   const wo=getWorkout(viewDate);
   if(id!=null){
@@ -2500,6 +2508,15 @@ function openExercise(id, preset){
     exDraft={ name:preset?preset.name:'', type:preset?preset.type:'strength', sets:[{reps:'',weight:''}], mins:'', dist:'' };
     if(preset && preset.type==='strength' && preset.name){ const ls=lastSession(preset.name, viewDate); if(ls) exDraft.sets=ls.sets.map(s=>({reps:s.reps,weight:s.weight})); }
   }
+  if(exDraft.type==='strength'){
+    if(!exDraft.sets||!exDraft.sets.length) exDraft.sets=[{reps:'',weight:''}];
+    const real=exDraft.sets.some(s=>s.weight||s.reps);
+    exDraft.mode = setsUniform(exDraft.sets) ? 'quick' : 'advanced';
+    const s0=exDraft.sets[0]||{};
+    exDraft.qSets = real ? exDraft.sets.length : ((exDraft.target&&exDraft.target.sets)||3);
+    exDraft.qReps = (s0.reps!==''&&s0.reps!=null) ? s0.reps : ((exDraft.target&&exDraft.target.reps)||'');
+    exDraft.qWeight = (s0.weight!==''&&s0.weight!=null) ? s0.weight : '';
+  }
   document.getElementById('exModalTitle').textContent = (exDraft.name||'Add exercise');
   document.getElementById('exDelete').style.display = id!=null?'block':'none';
   renderExerciseModal();
@@ -2509,23 +2526,41 @@ function openExercise(id, preset){
 function setExType(t){ exDraft.type=t; if(t==='strength' && (!exDraft.sets||!exDraft.sets.length)) exDraft.sets=[{reps:'',weight:''}]; renderExerciseModal(); }
 function addSet(){ const l=exDraft.sets[exDraft.sets.length-1]; exDraft.sets.push({reps:l?l.reps:'', weight:l?l.weight:''}); renderExerciseModal(); }
 function delSet(i){ exDraft.sets.splice(i,1); if(!exDraft.sets.length) exDraft.sets.push({reps:'',weight:''}); renderExerciseModal(); }
-function copyLast(){ const ls=lastSession(exDraft.name, viewDate); if(ls){ exDraft.sets=ls.sets.map(s=>({reps:s.reps,weight:s.weight})); renderExerciseModal(); } }
+function exToAdvanced(){ const n=Math.max(1,parseInt(exDraft.qSets)||1); exDraft.sets=Array.from({length:n},()=>({reps:exDraft.qReps||'', weight:exDraft.qWeight||''})); exDraft.mode='advanced'; renderExerciseModal(); }
+function exToQuick(){ const s0=exDraft.sets[0]||{}; exDraft.qSets=exDraft.sets.length; exDraft.qReps=s0.reps; exDraft.qWeight=s0.weight; exDraft.mode='quick'; renderExerciseModal(); }
+function useLast(){ const ls=lastSession(exDraft.name, viewDate); if(!ls) return;
+  if(exDraft.mode!=='advanced' && setsUniform(ls.sets)){ exDraft.qSets=ls.sets.length; exDraft.qReps=ls.sets[0].reps; exDraft.qWeight=ls.sets[0].weight; }
+  else { exDraft.sets=ls.sets.map(s=>({reps:s.reps,weight:s.weight})); exDraft.mode='advanced'; }
+  renderExerciseModal();
+}
 function updateLastHint(){ const el=document.getElementById('lastHint'); if(!el) return;
   if(exDraft.type!=='strength' || !exDraft.name){ el.innerHTML=''; return; }
   const ls=lastSession(exDraft.name, viewDate);
-  el.innerHTML = ls ? `<span>Last: ${ls.sets.map(s=>`${s.reps}×${s.weight}`).join(' ')}</span> <button class="btn-tmpl" style="padding:2px 9px" onclick="copyLast()">copy →</button>` : '';
+  el.innerHTML = ls ? `<span>Last: ${formatSets(ls.sets)}</span> <button class="btn-tmpl" style="padding:2px 9px" onclick="useLast()">use →</button>` : '';
 }
 function renderExerciseModal(){
   const recents=exerciseNames();
   let body='';
   if(exDraft.type==='strength'){
     body=`<div id="lastHint" class="last-hint"></div>`;
-    body+=exDraft.sets.map((s,i)=>`<div class="set-row"><span class="set-n">${i+1}</span>
-      <input type="number" inputmode="numeric" placeholder="reps" value="${s.reps}" oninput="exDraft.sets[${i}].reps=this.value">
-      <span class="set-x">×</span>
-      <input type="number" inputmode="decimal" placeholder="lbs" value="${s.weight}" oninput="exDraft.sets[${i}].weight=this.value">
-      <button class="set-del" onclick="delSet(${i})">✕</button></div>`).join('');
-    body+=`<button class="btn-tmpl" style="width:100%;margin-top:0.4rem" onclick="addSet()">+ Add set</button>`;
+    if(exDraft.mode!=='advanced'){
+      body+=`<div class="quick-sets">
+        <div class="qs-field"><label>Sets</label><input type="number" inputmode="numeric" id="qSets" value="${exDraft.qSets??''}" oninput="exDraft.qSets=this.value"></div>
+        <div class="qs-op">×</div>
+        <div class="qs-field"><label>Reps</label><input type="number" inputmode="numeric" id="qReps" value="${exDraft.qReps??''}" oninput="exDraft.qReps=this.value"></div>
+        <div class="qs-op">@</div>
+        <div class="qs-field"><label>Weight (lbs)</label><input type="number" inputmode="decimal" id="qWeight" value="${exDraft.qWeight??''}" oninput="exDraft.qWeight=this.value"></div>
+      </div>
+      <button class="mode-link" onclick="exToAdvanced()">Different weight per set? → Advanced</button>`;
+    } else {
+      body+=exDraft.sets.map((s,i)=>`<div class="set-row"><span class="set-n">${i+1}</span>
+        <input type="number" inputmode="numeric" placeholder="reps" value="${s.reps}" oninput="exDraft.sets[${i}].reps=this.value">
+        <span class="set-x">×</span>
+        <input type="number" inputmode="decimal" placeholder="lbs" value="${s.weight}" oninput="exDraft.sets[${i}].weight=this.value">
+        <button class="set-del" onclick="delSet(${i})">✕</button></div>`).join('');
+      body+=`<button class="btn-tmpl" style="width:100%;margin-top:0.4rem" onclick="addSet()">+ Add set</button>
+        <button class="mode-link" onclick="exToQuick()">← Same weight every set (simple)</button>`;
+    }
   } else {
     body=`<div class="gf"><label>Duration (min)</label><input type="number" inputmode="numeric" value="${exDraft.mins||''}" oninput="exDraft.mins=this.value"></div>
           <div class="gf"><label>Distance (mi, optional)</label><input type="number" inputmode="decimal" value="${exDraft.dist||''}" oninput="exDraft.dist=this.value"></div>`;
@@ -2544,8 +2579,17 @@ function saveExercise(){
   if(!name){ toast('Name the exercise'); return; }
   const date=viewDate; const wo=getWorkout(date); let entry;
   if(exDraft.type==='strength'){
-    const sets=exDraft.sets.map(s=>({reps:parseFloat(s.reps)||0, weight:parseFloat(s.weight)||0})).filter(s=>s.reps>0||s.weight>0);
-    if(!sets.length){ toast('Add at least one set'); return; }
+    let sets;
+    if(exDraft.mode!=='advanced'){
+      const nS=parseInt(document.getElementById('qSets').value)||0;
+      const nR=parseFloat(document.getElementById('qReps').value)||0;
+      const nW=parseFloat(document.getElementById('qWeight').value)||0;
+      if(!nS||!nR){ toast('Enter sets and reps'); return; }
+      sets=Array.from({length:nS},()=>({reps:nR, weight:nW}));
+    } else {
+      sets=exDraft.sets.map(s=>({reps:parseFloat(s.reps)||0, weight:parseFloat(s.weight)||0})).filter(s=>s.reps>0||s.weight>0);
+      if(!sets.length){ toast('Add at least one set'); return; }
+    }
     entry={ name, type:'strength', sets };
   } else {
     const mins=parseFloat(exDraft.mins)||0; if(!mins){ toast('Enter a duration'); return; }
