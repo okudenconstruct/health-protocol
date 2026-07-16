@@ -440,6 +440,13 @@ input, select { font-family: inherit; }
 .qs-field input:focus { outline: none; border-color: var(--accent); }
 .qs-op { color: var(--text-dim); font-family: var(--mono); padding-bottom: 0.65rem; }
 .mode-link { background: none; border: none; color: var(--accent); font-size: 0.76rem; padding: 0.4rem 0; cursor: pointer; display: block; }
+.fi-usual { color: var(--accent); font-size: 0.68rem; font-family: var(--mono); }
+.mm-item { position: relative; background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 0.75rem 0.85rem; margin-bottom: 0.5rem; cursor: pointer; }
+.mm-item:active { transform: scale(0.99); }
+.mm-item.mm-save { border-style: dashed; }
+.mm-t { font-weight: 700; font-size: 0.88rem; padding-right: 1.8rem; }
+.mm-sub { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; }
+.mm-del { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-dim); font-size: 0.95rem; padding: 4px; }
 #exType button { font-size: 0.82rem; padding: 0.5rem 0.9rem; }
 .wo-ex { display: flex; gap: 0.6rem; align-items: flex-start; }
 .wo-check { width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px; border: 2px solid var(--border); display: grid; place-items: center; color: #fff; font-size: 0.85rem; margin-top: 1px; }
@@ -503,7 +510,7 @@ input, select { font-family: inherit; }
       <div class="secondary-strip" id="secondaryStrip"></div>
     </div>
 
-    <div class="card-title" style="padding:0 0.2rem">Meals <span class="tac" style="cursor:default">tap ⚖ to weigh (oz/g)</span></div>
+    <div class="card-title" style="padding:0 0.2rem">Meals <span class="tac" onclick="copyPrevDay()">⟲ Copy yesterday</span></div>
     <div id="slots"></div>
 
     <div class="card">
@@ -712,6 +719,14 @@ input, select { font-family: inherit; }
       <button class="wm-cancel" id="amtCancel">Cancel</button>
       <button class="wm-confirm" id="amtSave" style="background:var(--accent)">Set</button>
     </div>
+  </div>
+</div>
+
+<!-- MEAL MENU (repeat / combos / templates) -->
+<div class="modal-backdrop" id="mealMenu">
+  <div class="modal">
+    <div class="modal-head"><h2 id="mealMenuTitle">Meal</h2><button class="icon-btn" id="mealMenuClose">✕</button></div>
+    <div style="padding:0 1rem 1.5rem; overflow-y:auto" id="mealMenuBody"></div>
   </div>
 </div>
 
@@ -1108,6 +1123,7 @@ function entryQty(food, e){
 }
 
 const CATS = [
+  { id:'quick', name:'⚡ Quick' },
   { id:'all', name:'All' },
   { id:'protein', name:'Protein' },
   { id:'rs', name:'RS Starch' },
@@ -1304,6 +1320,7 @@ const DEFAULT_STATE = {
     habitMilestones: {} // streak milestone -> date celebrated
   },
   workouts: {},         // date -> [ {id, name, type:'strength'|'cardio', sets:[{reps,weight}], mins, dist} ]
+  mealCombos: {},       // slotId -> [ {id, name, items:[{foodId,servings,grams,unit}]} ]
   _seq: 1,
   updatedAt: 0
 };
@@ -1389,10 +1406,58 @@ function getLog(date){
   if(!log.dayType) log.dayType='training';
   return log;
 }
-function addFood(date, slotId, foodId, servings=1){
+/* ---------- usage history (powers Quick tab + usual-amount autofill) ---------- */
+function foodUsage(){
+  const u={};
+  Object.keys(state.dailyLogs).forEach(d=>{ const log=state.dailyLogs[d];
+    Object.values(log.meals||{}).forEach(arr=>arr.forEach(e=>{
+      if(!u[e.foodId]) u[e.foodId]={count:0,last:''};
+      u[e.foodId].count++; if(d>u[e.foodId].last) u[e.foodId].last=d;
+    })); });
+  return u;
+}
+function frequentFoodIds(limit){
+  const u=foodUsage();
+  return Object.keys(u).filter(id=>FOOD_MAP[id])
+    .sort((a,b)=> (u[b].count-u[a].count) || u[b].last.localeCompare(u[a].last))
+    .slice(0, limit||30);
+}
+function median(a){ const s=[...a].sort((x,y)=>x-y); const m=Math.floor(s.length/2); return s.length%2? s[m] : (s[m-1]+s[m])/2; }
+/* Your USUAL portion for a food: median of weighed amounts (robust to one-off
+   outliers), with your most recent unit preference. Falls back to servings. */
+function usualAmount(foodId){
+  const gramsList=[], servList=[]; let recent=null, recentDate='';
+  Object.keys(state.dailyLogs).forEach(d=>{ const log=state.dailyLogs[d];
+    Object.values(log.meals||{}).forEach(arr=>arr.forEach(e=>{
+      if(e.foodId!==foodId) return;
+      if(e.grams!=null) gramsList.push(e.grams); else if(e.servings!=null) servList.push(e.servings);
+      if(d>=recentDate){ recentDate=d; recent=e; }
+    })); });
+  if(!recent) return null;
+  if(gramsList.length) return { grams:median(gramsList), unit:recent.unit||'g' };
+  if(servList.length) return { servings:median(servList) };
+  return { servings:recent.servings };
+}
+/* Most recent prior day that had food in this slot. */
+function lastSlotDay(slot, beforeDate){
+  const dates=Object.keys(state.dailyLogs).filter(d=> d<beforeDate && ((state.dailyLogs[d].meals||{})[slot]||[]).length).sort();
+  return dates.length? dates[dates.length-1] : null;
+}
+/* servings omitted -> auto-fill the usual amount from history. */
+function addFood(date, slotId, foodId, servings){
   const log = getLog(date);
-  log.meals[slotId].push({ id: state._seq++, foodId, servings });
+  const e = { id: state._seq++, foodId, servings: servings!=null?servings:1 };
+  if(servings==null){
+    const u=usualAmount(foodId);
+    if(u){
+      if(u.grams!=null){ const sg=servingGrams(FOOD_MAP[foodId]);
+        if(sg){ e.grams=u.grams; e.unit=u.unit||'g'; e.servings=u.grams/sg; } }
+      else if(u.servings!=null) e.servings=u.servings;
+    }
+  }
+  log.meals[slotId].push(e);
   saveState();
+  return e;
 }
 function removeEntry(date, slotId, entryId){
   const log = getLog(date);
@@ -1758,7 +1823,7 @@ function renderSlots(){
       </div>`;
     }).join('') : `<div class="slot-empty">No items yet</div>`;
     const st = slotTotals(viewDate, slot.id);
-    const tmplBtn = MEAL_TEMPLATES[slot.id] ? `<button class="btn-tmpl" onclick="loadMealTemplate('${slot.id}')">⚡ Template</button>` : '';
+    const tmplBtn = `<button class="btn-tmpl" onclick="openMealMenu('${slot.id}')">⚡ Meals</button>`;
     const tgt = (slot.rs||slot.protein) ? `<div class="slot-stats">
         ${slot.rs?`<span class="ss rs">RS <b>${st.rs.toFixed(0)}</b>/${slot.rs}</span>`:''}
         ${slot.protein?`<span class="ss pro">P <b>${st.p.toFixed(0)}</b>/${slot.protein}</span>`:''}
@@ -2090,7 +2155,7 @@ function setRefTab(t){ refTab=t; renderRef(); }
 
 /* ---------- FOOD PICKER ---------- */
 function openPicker(slotId){
-  pickerSlot = slotId; pickerCat='all';
+  pickerSlot = slotId; pickerCat = frequentFoodIds(1).length ? 'quick' : 'all';
   const slot = SLOTS.find(s=>s.id===slotId);
   const sName = slot? slotDisplay(slot, getLog(viewDate).dayType).name : 'meal';
   document.getElementById('foodModalTitle').textContent = 'Add to ' + sName;
@@ -2107,27 +2172,37 @@ function renderCatTabs(){
 function setPickerCat(c){ pickerCat=c; renderCatTabs(); renderFoodList(document.getElementById('foodSearch').value); }
 function renderFoodList(query){
   const q=(query||'').toLowerCase().trim();
-  const list = ALL_FOODS.filter(f=>{
-    if(pickerCat==='custom'){ if(!f.custom) return false; }
-    else if(pickerCat!=='all' && f.cat!==pickerCat) return false;
-    if(q && !f.name.toLowerCase().includes(q)) return false;
-    return true;
-  });
+  let list;
+  if(pickerCat==='quick'){
+    list = frequentFoodIds().map(id=>FOOD_MAP[id]).filter(Boolean);
+    if(q) list = list.filter(f=>f.name.toLowerCase().includes(q));
+  } else {
+    list = ALL_FOODS.filter(f=>{
+      if(pickerCat==='custom'){ if(!f.custom) return false; }
+      else if(pickerCat!=='all' && f.cat!==pickerCat) return false;
+      if(q && !f.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
   let rows = list.map(f=>{
     const rsv = f.rs>0? `<span class="rsv">RS ${f.rs}g</span> · `:'';
     const star = f.custom? '★ ' : '';
     const del = f.custom? `<button class="fi-del" onclick="deleteCustomFood('${f.id}')">🗑</button>` : '';
+    const u = usualAmount(f.id);
+    const usual = u ? `<span class="fi-usual">usually ${u.grams!=null ? (u.unit==='g'? Math.round(u.grams)+' g' : (Math.round(u.grams/OZ_G*10)/10)+' oz') : (Math.round((u.servings||1)*100)/100)+'×'}</span>` : '';
     return `<div class="food-item">
       <div class="fi-main">
         <div class="fi-name">${star}${f.name} ${entryFlags(f)}</div>
-        <div class="fi-serv">${f.serv}</div>
+        <div class="fi-serv">${f.serv} ${usual}</div>
         <div class="fi-macros">${rsv}${f.cal}cal · P${f.p} C${f.c} F${f.f}</div>
       </div>
       <button class="fi-add" onclick="pickFood('${f.id}')">+</button>${del}
     </div>`;
   }).join('');
   if(!rows){
-    rows = pickerCat==='custom'
+    rows = pickerCat==='quick'
+      ? `<p class="muted" style="padding:1rem 0">Your most-logged foods will appear here once you've logged a few days.</p>`
+      : pickerCat==='custom'
       ? `<p class="muted" style="padding:1rem 0">No custom foods yet. Tap “Create custom food” above to add one.</p>`
       : `<p class="muted" style="padding:1rem 0">No foods match.</p>`;
   }
@@ -2180,8 +2255,8 @@ function pickFood(foodId){
     pendingAdd = { slot: pickerSlot, foodId };
     showWarning(food);
   } else {
-    addFood(viewDate, pickerSlot, foodId);
-    toast(`Added ${food.name}`); closePicker(); renderAll();
+    const e = addFood(viewDate, pickerSlot, foodId);
+    toast(`Added ${food.name} · ${entryQty(food,e)}`); closePicker(); renderAll();
   }
 }
 function showWarning(food){
@@ -2202,13 +2277,67 @@ function confirmWarning(){
 }
 function cancelWarning(){ pendingAdd=null; document.getElementById('warnModal').classList.remove('open'); }
 
-function loadMealTemplate(slotId){
+function loadMealTemplate(slotId, idx){
   const tmpls = MEAL_TEMPLATES[slotId]; if(!tmpls) return;
-  let tmpl = tmpls[0];
-  if(slotId==='postGym' && tmpls.length>1){ tmpl = (parseDate(viewDate).getDate()%2===0)? tmpls[1]:tmpls[0]; }
+  const tmpl = tmpls[idx||0]; if(!tmpl) return;
+  tmpl.items.forEach(fid=> addFood(viewDate, slotId, fid)); // auto-fills usual amounts
+  closeMealMenu(); renderAll(); toast(`Loaded: ${tmpl.name}`);
+}
+
+/* ---------- MEAL MENU (repeat · combos · templates · save) ---------- */
+let mealMenuSlot=null;
+function getCombos(slot){ if(!state.mealCombos) state.mealCombos={}; if(!state.mealCombos[slot]) state.mealCombos[slot]=[]; return state.mealCombos[slot]; }
+function openMealMenu(slot){
+  mealMenuSlot=slot;
+  const s=SLOTS.find(x=>x.id===slot);
+  document.getElementById('mealMenuTitle').textContent = s? slotDisplay(s, getLog(viewDate).dayType).name : 'Meal';
+  renderMealMenu(slot);
+  document.getElementById('mealMenu').classList.add('open');
+}
+function closeMealMenu(){ document.getElementById('mealMenu').classList.remove('open'); }
+function renderMealMenu(slot){
+  const last=lastSlotDay(slot, viewDate);
+  const tmpls=MEAL_TEMPLATES[slot]||[];
+  const combos=getCombos(slot);
+  const cur=(getLog(viewDate).meals[slot]||[]).length;
+  let h='';
+  if(last){
+    const names=(state.dailyLogs[last].meals[slot]||[]).map(e=>FOOD_MAP[e.foodId]?FOOD_MAP[e.foodId].name:'').filter(Boolean).slice(0,3).join(', ');
+    h+=`<div class="mm-item" onclick="repeatLastSlot('${slot}')"><div class="mm-t">⟲ Repeat ${prettyDate(last)}</div><div class="mm-sub">${names}</div></div>`;
+  }
+  combos.forEach(c=> h+=`<div class="mm-item" onclick="loadCombo('${slot}',${c.id})"><div class="mm-t">⚡ ${c.name}</div><button class="mm-del" onclick="event.stopPropagation();delCombo('${slot}',${c.id})">🗑</button></div>`);
+  tmpls.forEach((t,i)=> h+=`<div class="mm-item" onclick="loadMealTemplate('${slot}',${i})"><div class="mm-t">📋 ${t.name}</div></div>`);
+  if(cur) h+=`<div class="mm-item mm-save" onclick="saveCombo('${slot}')"><div class="mm-t">💾 Save current meal as a combo</div></div>`;
+  if(!h) h=`<p class="muted" style="font-size:0.85rem">Nothing saved yet — log this meal, then save it as a combo for one-tap reuse.</p>`;
+  document.getElementById('mealMenuBody').innerHTML=h;
+}
+function copyEntry(e){ const c={ id:state._seq++, foodId:e.foodId, servings:e.servings }; if(e.grams!=null){ c.grams=e.grams; c.unit=e.unit; } return c; }
+function repeatLastSlot(slot){
+  const d=lastSlotDay(slot, viewDate); if(!d){ toast('No previous meal'); return; }
   const log=getLog(viewDate);
-  tmpl.items.forEach(fid=> log.meals[slotId].push({id:state._seq++, foodId:fid, servings:1}));
-  saveState(); renderAll(); toast(`Loaded: ${tmpl.name}`);
+  (state.dailyLogs[d].meals[slot]||[]).forEach(e=> log.meals[slot].push(copyEntry(e)));
+  saveState(); closeMealMenu(); renderAll(); toast(`Repeated ${prettyDate(d)}'s meal`);
+}
+function saveCombo(slot){
+  const items=(getLog(viewDate).meals[slot]||[]).map(e=>({foodId:e.foodId, servings:e.servings, grams:e.grams, unit:e.unit}));
+  if(!items.length){ toast('Nothing to save'); return; }
+  const nm=items.slice(0,3).map(i=>{ const f=FOOD_MAP[i.foodId]; return f? f.name.split(',')[0].split('(')[0].trim() : ''; }).filter(Boolean).join(' + ') + (items.length>3?` +${items.length-3}`:'');
+  getCombos(slot).push({ id:state._seq++, name:nm, items });
+  saveState(); renderMealMenu(slot); toast('Combo saved ⚡');
+}
+function loadCombo(slot,id){
+  const c=getCombos(slot).find(x=>x.id===id); if(!c) return;
+  const log=getLog(viewDate);
+  c.items.forEach(i=> log.meals[slot].push(copyEntry(i)));
+  saveState(); closeMealMenu(); renderAll(); toast(`Loaded ${c.name}`);
+}
+function delCombo(slot,id){ state.mealCombos[slot]=getCombos(slot).filter(c=>c.id!==id); saveState(); renderMealMenu(slot); toast('Combo removed'); }
+function copyPrevDay(){
+  const dates=Object.keys(state.dailyLogs).filter(d=> d<viewDate && dayLogged(d)).sort();
+  if(!dates.length){ toast('No previous day to copy'); return; }
+  const src=dates[dates.length-1]; const log=getLog(viewDate);
+  SLOTS.forEach(s=> (state.dailyLogs[src].meals[s.id]||[]).forEach(e=> log.meals[s.id].push(copyEntry(e))));
+  saveState(); renderAll(); toast(`Copied ${prettyDate(src)}`);
 }
 
 /* ---------- HANDLERS ---------- */
@@ -2686,6 +2815,8 @@ function bindEvents(){
   document.getElementById('exDelete').onclick=()=>{ if(exDraft&&exDraft.id!=null) deleteExercise(exDraft.id); document.getElementById('exModal').classList.remove('open'); };
   document.getElementById('exModal').addEventListener('click', e=>{ if(e.target.id==='exModal') document.getElementById('exModal').classList.remove('open'); });
   document.getElementById('exBody').addEventListener('click', e=>{ const b=e.target.closest('[data-xt]'); if(b) setExType(b.dataset.xt); });
+  document.getElementById('mealMenuClose').onclick=closeMealMenu;
+  document.getElementById('mealMenu').addEventListener('click', e=>{ if(e.target.id==='mealMenu') closeMealMenu(); });
   document.getElementById('exLibClose').onclick=()=>document.getElementById('exLibModal').classList.remove('open');
   document.getElementById('exLibModal').addEventListener('click', e=>{ if(e.target.id==='exLibModal') document.getElementById('exLibModal').classList.remove('open'); });
   document.getElementById('exLibSearch').addEventListener('input', e=> renderExLibList(e.target.value));
