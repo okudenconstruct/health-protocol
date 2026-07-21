@@ -7,7 +7,7 @@
 <meta name="description" content="Personal food & health protocol tracker — RS, macros, recomposition." />
 <meta name="theme-color" content="#0a0a0f" />
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="icon.svg" />
+<link rel="apple-touch-icon" href="icon-180.png" /><!-- iOS ignores SVG touch icons -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -23,7 +23,7 @@
   --border-soft: #20202c;
   --text: #edeef2;
   --text-muted: #8b8b9a;
-  --text-dim: #5a5a68;
+  --text-dim: #7d7d8e; /* was #5a5a68 — ~3:1 on the bg, below AA for the small text it labels */
   --accent: #4a9eff;
   --cal: #4a9eff;
   --protein: #8b5cf6;
@@ -63,7 +63,7 @@ input, select { font-family: inherit; }
   position: sticky; top: 0; z-index: 40;
   background: rgba(10,10,15,0.85); backdrop-filter: blur(12px);
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.9rem 0 0.7rem; margin-bottom: 0.5rem;
+  padding: calc(0.9rem + env(safe-area-inset-top)) 0 0.7rem; margin-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-soft);
 }
 .topbar h1 {
@@ -136,7 +136,7 @@ input, select { font-family: inherit; }
 .ring-prog { transition: stroke-dashoffset 0.5s ease, stroke 0.3s; stroke-linecap: round; }
 .ring-center { font-family: var(--mono); }
 .ring-val { font-size: 0.95rem; font-weight: 700; }
-.ring-unit { font-size: 0.5rem; fill: var(--text-dim); }
+.ring-unit { font-size: 0.65rem; fill: var(--text-dim); }
 .ring-label { font-size: 0.66rem; font-weight: 600; color: var(--text-muted); text-align: center; }
 .ring-target { font-size: 0.6rem; font-family: var(--mono); color: var(--text-dim); }
 
@@ -191,7 +191,7 @@ input, select { font-family: inherit; }
 .flag.fish { background: var(--success-bg); color: var(--success); }
 .flag.processed { background: rgba(180,120,60,0.16); color: #c89b6a; }
 .qty { display: flex; align-items: center; gap: 2px; }
-.qty button { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-input); border: 1px solid var(--border-soft);
+.qty button { width: 32px; height: 32px; border-radius: 7px; background: var(--bg-input); border: 1px solid var(--border-soft);
   font-size: 1rem; font-weight: 700; color: var(--text-muted); display: grid; place-items: center; }
 .qty button:active { transform: scale(0.9); }
 .qty .qv { width: auto; height: auto; min-width: 50px; display: inline-block; white-space: nowrap; text-align: center;
@@ -200,7 +200,7 @@ input, select { font-family: inherit; }
 .entry .qty { flex-shrink: 0; }
 .entry .e-name { min-width: 0; }
 .qty .qv:active { transform: scale(0.94); }
-.e-del { color: var(--text-dim); font-size: 1rem; padding: 0 4px; }
+.e-del { color: var(--text-dim); font-size: 1rem; padding: 8px 6px; margin: -8px 0; } /* bigger hit area, same visual footprint */
 .slot-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
 .btn-add { flex: 1; padding: 0.5rem; border-radius: var(--radius-sm); background: var(--bg-input);
   border: 1px dashed var(--border); color: var(--text-muted); font-weight: 600; font-size: 0.82rem; }
@@ -323,6 +323,7 @@ input, select { font-family: inherit; }
   width: calc(100% - 2rem); margin: auto; padding: 1.3rem; animation: pop 0.2s; }
 @keyframes pop { from { transform: scale(0.9); opacity: 0; } to { transform: none; opacity: 1; } }
 .modal-backdrop.center { align-items: center; }
+#warnModal { z-index: 120; } /* confirm dialog must sit above other open modals (Settings, picker) */
 .warn-modal .wm-icon { font-size: 2rem; text-align: center; margin-bottom: 0.5rem; }
 .warn-modal h2 { font-size: 1.1rem; text-align: center; margin-bottom: 0.5rem; }
 .warn-modal .wm-body { font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-bottom: 1rem; }
@@ -413,7 +414,7 @@ input, select { font-family: inherit; }
 .gf input:focus { outline: none; border-color: var(--accent); }
 .gf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .tabbar button .ti { font-size: 1.2rem; }
-.tabbar button { font-size: 0.6rem; }
+.tabbar button { font-size: 0.66rem; }
 
 /* ===== GYM ===== */
 .wo-ex { background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; cursor: pointer; }
@@ -549,6 +550,17 @@ input, select { font-family: inherit; }
       </div>
       <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
     </div>
+
+    <div class="card">
+      <div class="card-title">Body Comp <span class="tac" id="bcLastTac" style="cursor:default"></span></div>
+      <div class="bc-inputs">
+        <div><label>Waist (in, at navel)</label><input type="number" inputmode="decimal" id="bcWaist" step="0.1" /></div>
+        <div><label>Neck (in)</label><input type="number" inputmode="decimal" id="bcNeck" step="0.1" /></div>
+      </div>
+      <button class="btn-primary" id="bcSave" style="width:100%;margin-bottom:0.8rem">Log measurements</button>
+      <div class="stat-grid" id="bcStats"></div>
+      <p class="muted" id="bcNote" style="font-size:0.76rem;margin-top:0.6rem"></p>
+    </div>
   </section>
 
   <!-- ============ LEVEL / CHARACTER ============ -->
@@ -616,7 +628,7 @@ input, select { font-family: inherit; }
 
 <!-- FOOD PICKER MODAL -->
 <div class="modal-backdrop" id="foodModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="foodModalTitle">
     <div class="modal-head"><h2 id="foodModalTitle">Add to meal</h2><button class="icon-btn" id="foodModalClose">✕</button></div>
     <div class="modal-search"><input type="text" id="foodSearch" placeholder="Search foods…" /></div>
     <button id="createFoodBtn" class="btn-add" style="margin:0 1rem 0.6rem; width:calc(100% - 2rem)">➕ Create custom food</button>
@@ -627,7 +639,7 @@ input, select { font-family: inherit; }
 
 <!-- WARNING CONFIRM -->
 <div class="modal-backdrop center" id="warnModal">
-  <div class="warn-modal">
+  <div class="warn-modal" role="alertdialog" aria-modal="true" aria-labelledby="warnTitle" aria-describedby="warnBody">
     <div class="wm-icon" id="warnIcon">⚠️</div>
     <h2 id="warnTitle">Protocol conflict</h2>
     <div class="wm-body" id="warnBody"></div>
@@ -640,7 +652,7 @@ input, select { font-family: inherit; }
 
 <!-- SETTINGS -->
 <div class="modal-backdrop" id="settingsModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Settings">
     <div class="modal-head"><h2>Settings</h2><button class="icon-btn" id="settingsClose">✕</button></div>
     <div style="padding:0 1rem 1.5rem; overflow-y:auto">
       <div class="set-row"><div><div class="sr-lab">Current RS target</div><div class="sr-sub">grams/day (ramp rung)</div></div><input type="number" id="setRsTarget" /></div>
@@ -655,15 +667,17 @@ input, select { font-family: inherit; }
       </div>
       <div style="margin-top:1.2rem; display:flex; gap:0.5rem">
         <button class="btn-primary" id="settingsSave" style="flex:1">Save</button>
-        <button class="btn-tmpl" id="exportData">Export JSON</button>
+        <button class="btn-tmpl" id="exportData">Export</button>
+        <button class="btn-tmpl" id="importData">Import</button>
       </div>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none" />
     </div>
   </div>
 </div>
 
 <!-- CUSTOM FOOD CREATOR -->
 <div class="modal-backdrop" id="customModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Create custom food">
     <div class="modal-head"><h2>Create custom food</h2><button class="icon-btn" id="customClose">✕</button></div>
     <div style="padding:0 1rem 1.5rem; overflow-y:auto">
       <div class="cf-field"><label>Name</label><input id="cfName" type="text" placeholder="e.g. Quest bar" /></div>
@@ -706,7 +720,7 @@ input, select { font-family: inherit; }
 
 <!-- AMOUNT (servings / weight) -->
 <div class="modal-backdrop center" id="amountModal">
-  <div class="warn-modal" style="border-color:var(--accent)">
+  <div class="warn-modal" role="dialog" aria-modal="true" aria-labelledby="amtTitle" style="border-color:var(--accent)">
     <h2 id="amtTitle">Amount</h2>
     <div class="wm-body" id="amtSub" style="margin-bottom:0.8rem"></div>
     <div style="display:flex; gap:0.5rem; margin-bottom:1rem; align-items:center">
@@ -726,7 +740,7 @@ input, select { font-family: inherit; }
 
 <!-- MEAL MENU (repeat / combos / templates) -->
 <div class="modal-backdrop" id="mealMenu">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mealMenuTitle">
     <div class="modal-head"><h2 id="mealMenuTitle">Meal</h2><button class="icon-btn" id="mealMenuClose">✕</button></div>
     <div style="padding:0 1rem 1.5rem; overflow-y:auto" id="mealMenuBody"></div>
   </div>
@@ -734,7 +748,7 @@ input, select { font-family: inherit; }
 
 <!-- EXERCISE LIBRARY PICKER -->
 <div class="modal-backdrop" id="exLibModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Choose exercise">
     <div class="modal-head"><h2>Choose exercise</h2><button class="icon-btn" id="exLibClose">✕</button></div>
     <div class="modal-search"><input type="text" id="exLibSearch" placeholder="Search exercises…" /></div>
     <div class="cat-tabs" id="exLibTabs"></div>
@@ -744,7 +758,7 @@ input, select { font-family: inherit; }
 
 <!-- EXERCISE MODAL -->
 <div class="modal-backdrop" id="exModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="exModalTitle">
     <div class="modal-head"><h2 id="exModalTitle">Add exercise</h2><button class="icon-btn" id="exClose">✕</button></div>
     <div style="padding:0 1rem 1.5rem; overflow-y:auto">
       <div id="exBody"></div>
@@ -756,7 +770,7 @@ input, select { font-family: inherit; }
 
 <!-- GOAL MODAL -->
 <div class="modal-backdrop" id="goalModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="goalModalTitle">
     <div class="modal-head"><h2 id="goalModalTitle">Primary goal</h2><button class="icon-btn" id="goalClose">✕</button></div>
     <div style="padding:0 1rem 1.5rem; overflow-y:auto">
       <div class="goal-types" id="goalTypes"></div>
@@ -767,7 +781,7 @@ input, select { font-family: inherit; }
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* =========================================================================
@@ -1353,19 +1367,41 @@ function prettyDate(s){
   if(s===shiftDate(t,1)) return 'Tomorrow';
   return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
 }
+/* Escape user-supplied strings before interpolating into innerHTML (names, servings, labels). */
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+/* PWAs stay resumed across midnight — re-anchor "today" whenever we regain focus,
+   otherwise everything logs to yesterday's date. */
+function checkDayRollover(){
+  const t=todayStr();
+  if(t===currentDate) return;
+  if(viewDate===currentDate) viewDate=t;   // follow the rollover unless reviewing a past day
+  currentDate=t;
+  renderAll(); refreshActiveView();
+}
 
 /* ---------- STORAGE (localStorage now; Firebase hooks below) ---------- */
 const LS_KEY = 'shp_state_v1';
 let saveTimer = null;
+/* Derived-data caches. Every state mutation funnels through saveState/applyRemoteState,
+   which clear them — so cached values can never go stale. */
+const totalsCache = new Map();   // date -> dayTotals result
+let usageIndex = null;           // foodId -> usage stats (Quick tab, "usually" hints, autofill)
+function invalidateCaches(){ totalsCache.clear(); usageIndex=null; }
+/* Overlay a parsed snapshot onto fresh defaults (single source of truth for both
+   localStorage load and remote sync apply). */
+function hydrate(parsed){
+  const s = Object.assign(structuredClone(DEFAULT_STATE), parsed);
+  s.settings = Object.assign({}, DEFAULT_STATE.settings, (parsed&&parsed.settings)||{});
+  return s;
+}
 function loadState(){
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ const parsed=JSON.parse(raw);
-      state = Object.assign(structuredClone(DEFAULT_STATE), parsed);
-      state.settings = Object.assign({}, DEFAULT_STATE.settings, parsed.settings||{}); }
+    if(raw) state = hydrate(JSON.parse(raw));
   } catch(e){ console.warn('load failed', e); }
 }
 function saveState(){
+  invalidateCaches();
   state.updatedAt = Date.now();
   localStorage.setItem(LS_KEY, JSON.stringify(state));
   clearTimeout(saveTimer);
@@ -1376,24 +1412,24 @@ function saveState(){
    stub to a live Firestore connection; until then the app runs fully on localStorage. */
 window.Cloud = { enabled:false, init(){}, push(){} };
 
-/* state: true|'synced' · false (auto: 'error' if signed in, else 'out') · 'connecting' · 'error' */
-function setSyncUI(state){
+/* mode: true|'synced' · false (auto: 'error' if signed in, else 'out') · 'connecting' · 'error' */
+function setSyncUI(mode){   // NB: do not name this param "state" — it would shadow the app state global
   const pill=document.getElementById('syncPill'), txt=document.getElementById('syncText');
   if(!pill) return;
   const signedIn = !!(window.Cloud && window.Cloud.user);
-  if(state===true) state='synced';
-  else if(state===false) state = signedIn ? 'error' : 'out';
+  if(mode===true) mode='synced';
+  else if(mode===false) mode = signedIn ? 'error' : 'out';
   pill.classList.remove('local','cloud','err');
   pill.onclick=null; pill.style.cursor='default';
-  if(state==='synced'){
+  if(mode==='synced'){
     pill.classList.add('cloud');
     const who=(window.Cloud.user&&(window.Cloud.user.name||window.Cloud.user.email)||'').split(' ')[0].split('@')[0];
     txt.textContent = who ? who.toLowerCase() : 'synced';
     pill.title='Signed in & syncing — tap for account';
     pill.style.cursor='pointer'; pill.onclick=()=>openSettings();
-  } else if(state==='connecting'){
+  } else if(mode==='connecting'){
     pill.classList.add('local'); txt.textContent='syncing…';
-  } else if(state==='error'){
+  } else if(mode==='error'){
     pill.classList.add('err'); txt.textContent='sync error';
     pill.title='Signed in, but the database rejected sync — check Firestore rules';
     pill.style.cursor='pointer'; pill.onclick=()=>openSettings();
@@ -1408,25 +1444,75 @@ function setSyncUI(state){
 function applyRemoteState(remote){
   if(!remote) return;
   const seq = Math.max(state._seq||1, remote._seq||1);
-  state = Object.assign(structuredClone(DEFAULT_STATE), remote);
-  state.settings = Object.assign({}, DEFAULT_STATE.settings, remote.settings||{});
+  state = hydrate(remote);
   state._seq = seq;
   localStorage.setItem(LS_KEY, JSON.stringify(state));
+  invalidateCaches();
   rebuildFoods();
   renderAll();
-  const active=document.querySelector('.view.active');
-  if(active){ const v=active.id.replace('view-','');
-    if(v==='trends'){ renderRamp(); renderWeight(); }
-    else if(v==='level') renderLevel();
-    else if(v==='gym') renderGym();
-    else if(v==='plan') renderPlan();
-    else if(v==='ref') renderRef(); }
+  refreshActiveView();
+}
+
+/* Key-wise union of two state snapshots. Used when a device syncs an account for the
+   FIRST time and for JSON import — the two cases where last-write-wins would clobber
+   real data. Collections union by key; a per-day conflict keeps the fuller log;
+   ratchets (bonus XP, milestones, achievements) take the max/union; scalar prefs
+   (settings, shopping, goals) follow the newer snapshot. */
+function countMeals(log){ return Object.values((log&&log.meals)||{}).reduce((n,a)=>n+(a?a.length:0),0); }
+function mergeStates(a,b){
+  const newer = (b.updatedAt||0) >= (a.updatedAt||0) ? b : a;
+  const older = newer===b ? a : b;
+  const out = Object.assign(structuredClone(DEFAULT_STATE), structuredClone(newer));
+  out.settings = Object.assign({}, DEFAULT_STATE.settings, older.settings||{}, newer.settings||{});
+  out.dailyLogs = Object.assign({}, older.dailyLogs||{});
+  Object.keys(newer.dailyLogs||{}).forEach(d=>{
+    const nl=newer.dailyLogs[d], ol=out.dailyLogs[d];
+    out.dailyLogs[d] = (ol && countMeals(ol)>countMeals(nl)) ? ol : nl;
+  });
+  out.workouts = Object.assign({}, older.workouts||{});
+  Object.keys(newer.workouts||{}).forEach(d=>{
+    const nw=newer.workouts[d]||[], ow=out.workouts[d];
+    out.workouts[d] = (ow && ow.length>nw.length) ? ow : nw;
+  });
+  out.bodyComp = Object.assign({}, older.bodyComp||{}, newer.bodyComp||{});
+  out.coachDismissed = Object.assign({}, older.coachDismissed||{}, newer.coachDismissed||{});
+  const foods={};
+  (older.customFoods||[]).concat(newer.customFoods||[]).forEach(f=>{ if(f&&f.id) foods[f.id]=f; });
+  out.customFoods = Object.values(foods);
+  out.mealCombos = {};
+  new Set(Object.keys(older.mealCombos||{}).concat(Object.keys(newer.mealCombos||{}))).forEach(s=>{
+    const seen={};
+    ((older.mealCombos||{})[s]||[]).concat((newer.mealCombos||{})[s]||[]).forEach(c=>{ if(c) seen[c.id]=c; });
+    out.mealCombos[s]=Object.values(seen);
+  });
+  const og=older.game||{}, ng=newer.game||{};
+  out.game = Object.assign(structuredClone(DEFAULT_STATE.game), ng);
+  out.game.achievements = Object.assign({}, og.achievements||{});
+  Object.keys(ng.achievements||{}).forEach(k=>{ const prev=out.game.achievements[k];
+    out.game.achievements[k] = (prev && prev < ng.achievements[k]) ? prev : ng.achievements[k]; });  // keep earliest earned date
+  out.game.habitMilestones = Object.assign({}, og.habitMilestones||{}, ng.habitMilestones||{});
+  out.game.goalBonusXp = Math.max(og.goalBonusXp||0, ng.goalBonusXp||0);
+  out.game.seenLevel = Math.max(og.seenLevel||1, ng.seenLevel||1);
+  if(!(ng.goals && (ng.goals.primary||ng.goals.habit)) && og.goals) out.game.goals = og.goals;
+  out._seq = Math.max(a._seq||1, b._seq||1);
+  out.updatedAt = Math.max(a.updatedAt||0, b.updatedAt||0);
+  return out;
 }
 
 /* ---------- LOG ACCESSORS ---------- */
+/* Read-only lookups. Renderers must use these — getLog/getWorkout CREATE entries,
+   so using them on read paths persisted a phantom log for every date browsed past. */
+function peekLog(date){
+  return state.dailyLogs[date] || { dayType:'training', meals:{}, weight:null, greenTea:false, stack:false };
+}
+function peekWorkout(date){ return (state.workouts||{})[date] || []; }
+/* Freeze the settings-derived targets onto the day at first write, so raising the
+   RS rung later doesn't retroactively re-score (and de-XP) already-logged days. */
+function currentTargets(){ return { rs:state.settings.rsTarget, fiber:state.settings.fiberTarget, satCap:state.settings.satCap }; }
+function restampToday(){ const l=state.dailyLogs[currentDate]; if(l) l.targets=currentTargets(); }
 function getLog(date){
   if(!state.dailyLogs[date]){
-    state.dailyLogs[date] = { dayType:'training', meals:{}, weight:null, greenTea:false, stack:false };
+    state.dailyLogs[date] = { dayType:'training', meals:{}, weight:null, greenTea:false, stack:false, targets:currentTargets() };
   }
   const log = state.dailyLogs[date];
   if(!log.meals) log.meals={};
@@ -1435,14 +1521,19 @@ function getLog(date){
   return log;
 }
 /* ---------- usage history (powers Quick tab + usual-amount autofill) ---------- */
+/* One pass over all history, cached until the next state change (was: a full scan
+   per food row per keystroke in the picker). */
 function foodUsage(){
+  if(usageIndex) return usageIndex;
   const u={};
   Object.keys(state.dailyLogs).forEach(d=>{ const log=state.dailyLogs[d];
     Object.values(log.meals||{}).forEach(arr=>arr.forEach(e=>{
-      if(!u[e.foodId]) u[e.foodId]={count:0,last:''};
-      u[e.foodId].count++; if(d>u[e.foodId].last) u[e.foodId].last=d;
+      let x=u[e.foodId]; if(!x) x=u[e.foodId]={count:0,last:'',grams:[],servs:[],recent:null,recentDate:''};
+      x.count++; if(d>x.last) x.last=d;
+      if(e.grams!=null) x.grams.push(e.grams); else if(e.servings!=null) x.servs.push(e.servings);
+      if(d>=x.recentDate){ x.recentDate=d; x.recent=e; }
     })); });
-  return u;
+  usageIndex=u; return u;
 }
 function frequentFoodIds(limit){
   const u=foodUsage();
@@ -1454,17 +1545,11 @@ function median(a){ const s=[...a].sort((x,y)=>x-y); const m=Math.floor(s.length
 /* Your USUAL portion for a food: median of weighed amounts (robust to one-off
    outliers), with your most recent unit preference. Falls back to servings. */
 function usualAmount(foodId){
-  const gramsList=[], servList=[]; let recent=null, recentDate='';
-  Object.keys(state.dailyLogs).forEach(d=>{ const log=state.dailyLogs[d];
-    Object.values(log.meals||{}).forEach(arr=>arr.forEach(e=>{
-      if(e.foodId!==foodId) return;
-      if(e.grams!=null) gramsList.push(e.grams); else if(e.servings!=null) servList.push(e.servings);
-      if(d>=recentDate){ recentDate=d; recent=e; }
-    })); });
-  if(!recent) return null;
-  if(gramsList.length) return { grams:median(gramsList), unit:recent.unit||'g' };
-  if(servList.length) return { servings:median(servList) };
-  return { servings:recent.servings };
+  const x=foodUsage()[foodId];
+  if(!x || !x.recent) return null;
+  if(x.grams.length) return { grams:median(x.grams), unit:x.recent.unit||'g' };
+  if(x.servs.length) return { servings:median(x.servs) };
+  return { servings:x.recent.servings };
 }
 /* Most recent prior day that had food in this slot. */
 function lastSlotDay(slot, beforeDate){
@@ -1509,19 +1594,22 @@ function changeServings(date, slotId, entryId, dir){
 
 /* ---------- TOTALS ---------- */
 function dayTotals(date){
-  const log = getLog(date);
+  const hit = totalsCache.get(date);
+  if(hit) return hit;
+  const log = peekLog(date);
   const t = { cal:0, p:0, c:0, f:0, sat:0, fib:0, rs:0 };
-  Object.values(log.meals).forEach(arr=> arr.forEach(e=>{
+  Object.values(log.meals||{}).forEach(arr=> arr.forEach(e=>{
     const food = FOOD_MAP[e.foodId]; if(!food) return;
     t.cal+=food.cal*e.servings; t.p+=food.p*e.servings; t.c+=food.c*e.servings;
     t.f+=food.f*e.servings; t.sat+=food.sat*e.servings; t.fib+=food.fib*e.servings; t.rs+=food.rs*e.servings;
   }));
+  totalsCache.set(date, t);
   return t;
 }
 function slotTotals(date, slotId){
-  const log = getLog(date);
+  const log = peekLog(date);
   const t = { p:0, rs:0, cal:0 };
-  log.meals[slotId].forEach(e=>{ const f=FOOD_MAP[e.foodId]; if(!f) return;
+  (((log.meals)||{})[slotId]||[]).forEach(e=>{ const f=FOOD_MAP[e.foodId]; if(!f) return;
     t.p+=f.p*e.servings; t.rs+=f.rs*e.servings; t.cal+=f.cal*e.servings; });
   return t;
 }
@@ -1605,9 +1693,15 @@ function dayHits(date){
   const log=state.dailyLogs[date]; if(!log) return null;
   const t=dayTotals(date); const mt=MACRO_TARGETS[log.dayType||'training'];
   const anyFood=Object.values(log.meals||{}).some(a=>a&&a.length);
+  /* Score against the targets frozen on the day; fall back to current settings
+     only for legacy days logged before targets were stamped. */
+  const tg=log.targets||{};
+  const rsT=tg.rs!=null?tg.rs:state.settings.rsTarget;
+  const fibT=tg.fiber!=null?tg.fiber:state.settings.fiberTarget;
+  const satC=tg.satCap!=null?tg.satCap:state.settings.satCap;
   return { anyFood,
-    protein: t.p>=mt.protein, rs: t.rs>=state.settings.rsTarget, fiber: t.fib>=state.settings.fiberTarget,
-    cal: mt.cal>0 && Math.abs(t.cal-mt.cal)<=mt.cal*0.12, sat: t.sat<=state.settings.satCap,
+    protein: t.p>=mt.protein, rs: t.rs>=rsT, fiber: t.fib>=fibT,
+    cal: mt.cal>0 && Math.abs(t.cal-mt.cal)<=mt.cal*0.12, sat: t.sat<=satC,
     weight: !!log.weight, greenTea: !!log.greenTea, stack: !!log.stack };
 }
 function dayLogged(date){ const h=dayHits(date); return !!(h && h.anyFood); }
@@ -1778,10 +1872,12 @@ function fatColor(value,target){ const pct=target>0? value/target:0;
 
 function renderRings(){
   const t = dayTotals(viewDate);
-  const log = getLog(viewDate);
-  const mt = MACRO_TARGETS[log.dayType];
-  const rsT = state.settings.rsTarget;
-  const fibT = state.settings.fiberTarget;
+  const log = peekLog(viewDate);
+  const mt = MACRO_TARGETS[log.dayType||'training'];
+  const tg = log.targets||{};
+  const rsT = tg.rs!=null?tg.rs:state.settings.rsTarget;
+  const fibT = tg.fiber!=null?tg.fiber:state.settings.fiberTarget;
+  const satCap = tg.satCap!=null?tg.satCap:state.settings.satCap;
   document.getElementById('rings').innerHTML = [
     ringSVG(t.cal, mt.cal, 'var(--cal)', 'Calories', '', calColor(t.cal,mt.cal)),
     ringSVG(t.p, mt.protein, 'var(--protein)', 'Protein', 'g', moreBetterColor(t.p,mt.protein)),
@@ -1789,11 +1885,11 @@ function renderRings(){
     ringSVG(t.f, mt.fat, 'var(--fat)', 'Fat', 'g', fatColor(t.f,mt.fat)),
     ringSVG(t.fib, fibT, 'var(--fiber)', 'Fiber', 'g', moreBetterColor(t.fib,fibT)),
   ].join('');
-  const satPct = Math.min(t.sat/state.settings.satCap,1)*100;
-  const satColor = t.sat>state.settings.satCap? 'var(--danger)' : (t.sat>state.settings.satCap*0.7? 'var(--warning)':'var(--success)');
+  const satPct = Math.min(t.sat/satCap,1)*100;
+  const satColor = t.sat>satCap? 'var(--danger)' : (t.sat>satCap*0.7? 'var(--warning)':'var(--success)');
   document.getElementById('satFill').style.width = satPct+'%';
   document.getElementById('satFill').style.background = satColor;
-  document.getElementById('satNum').innerHTML = `<span style="color:${satColor}">${t.sat.toFixed(1)}g</span> / ${state.settings.satCap}g`;
+  document.getElementById('satNum').innerHTML = `<span style="color:${satColor}">${t.sat.toFixed(1)}g</span> / ${satCap}g`;
   const roll = rsRolling7(currentDate);
   document.getElementById('secondaryStrip').innerHTML = `
     <div class="mini-metric"><div class="mm-lab">Carbs</div><div class="mm-val">${Math.round(t.c)}g</div><div class="mm-tgt">/ ${mt.carbs}g</div></div>
@@ -1803,9 +1899,9 @@ function renderRings(){
 
 function renderNextAction(){
   const t = dayTotals(viewDate);
-  const log = getLog(viewDate);
-  const mt = MACRO_TARGETS[log.dayType];
-  const rsT = state.settings.rsTarget;
+  const log = peekLog(viewDate);
+  const mt = MACRO_TARGETS[log.dayType||'training'];
+  const rsT = (log.targets&&log.targets.rs!=null)?log.targets.rs:state.settings.rsTarget;
   let icon='✅', title='Protocol on track', sub='Nice work — keep it up.';
   const proLeft = mt.protein - t.p;
   const rsLeft = rsT - t.rs;
@@ -1830,17 +1926,18 @@ function entryFlags(food){
   return flags.join('');
 }
 
+const collapsedSlots = new Set(); // survives re-renders; innerHTML rebuilds used to re-expand everything
 function renderSlots(){
-  const log = getLog(viewDate);
-  const dt = log.dayType;
+  const log = peekLog(viewDate);
+  const dt = log.dayType||'training';
   const html = SLOTS.map(slot=>{
     const disp = slotDisplay(slot, dt);
-    const entries = log.meals[slot.id]||[];
+    const entries = (log.meals||{})[slot.id]||[];
     if(slot.id==='flex' && entries.length===0) return '';
     const entryHTML = entries.length? entries.map(e=>{
       const food=FOOD_MAP[e.foodId]; if(!food) return '';
       return `<div class="entry">
-        <div class="e-name">${food.name} <span class="e-serv">· ${food.serv}</span></div>
+        <div class="e-name">${esc(food.name)} <span class="e-serv">· ${esc(food.serv)}</span></div>
         <div class="e-flags">${entryFlags(food)}</div>
         <div class="qty">
           <button onclick="onServings('${slot.id}',${e.id},-1)">−</button>
@@ -1856,8 +1953,9 @@ function renderSlots(){
         ${slot.rs?`<span class="ss rs">RS <b>${st.rs.toFixed(0)}</b>/${slot.rs}</span>`:''}
         ${slot.protein?`<span class="ss pro">P <b>${st.p.toFixed(0)}</b>/${slot.protein}</span>`:''}
       </div>` : `<div class="slot-stats"><span class="ss">P <b>${st.p.toFixed(0)}</b></span></div>`;
-    return `<div class="slot" id="slot-${slot.id}">
-      <div class="slot-head" onclick="toggleSlot('${slot.id}')">
+    return `<div class="slot ${collapsedSlots.has(slot.id)?'collapsed':''}" id="slot-${slot.id}">
+      <div class="slot-head" role="button" tabindex="0" aria-expanded="${!collapsedSlots.has(slot.id)}"
+        onclick="toggleSlot('${slot.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSlot('${slot.id}')}">
         <span class="slot-icon">${disp.icon}</span>
         <span class="slot-name">${disp.name}</span>
         ${tgt}
@@ -1873,14 +1971,19 @@ function renderSlots(){
     </div>`;
   }).join('');
   // Add a button to reveal flex slot if hidden
-  const flexEntries = (log.meals.flex||[]).length;
+  const flexEntries = ((log.meals||{}).flex||[]).length;
   const addFlex = flexEntries===0 ? `<button class="btn-add" style="width:100%" onclick="openPicker('flex')">+ Add a flexible meal</button>` : '';
   document.getElementById('slots').innerHTML = html + addFlex;
 }
-function toggleSlot(id){ const el=document.getElementById('slot-'+id); if(el) el.classList.toggle('collapsed'); }
+function toggleSlot(id){
+  if(collapsedSlots.has(id)) collapsedSlots.delete(id); else collapsedSlots.add(id);
+  const el=document.getElementById('slot-'+id);
+  if(el){ el.classList.toggle('collapsed', collapsedSlots.has(id));
+    const h=el.querySelector('.slot-head'); if(h) h.setAttribute('aria-expanded', String(!collapsedSlots.has(id))); }
+}
 
 function renderChecklist(){
-  const log = getLog(viewDate);
+  const log = peekLog(viewDate);
   const stackSub = (log.dayType==='rest')
     ? 'Rest Blend B — beta-alanine + creatine'
     : 'Workout Blend A — citrulline · β-alanine · betaine · taurine · creatine';
@@ -1889,11 +1992,14 @@ function renderChecklist(){
     { key:'stack', text:'Pre-workout stack taken', sub:stackSub }
   ];
   document.getElementById('checklist').innerHTML = rows.map(r=>`
-    <div class="check-row ${log[r.key]?'done':''}" onclick="toggleCheck('${r.key}')">
-      <div class="check-box">✓</div>
+    <div class="check-row ${log[r.key]?'done':''}" role="checkbox" aria-checked="${!!log[r.key]}" tabindex="0"
+      data-ck="${r.key}" onclick="toggleCheck('${r.key}')" onkeydown="checkKey(event,'${r.key}')">
+      <div class="check-box" aria-hidden="true">✓</div>
       <div><div class="cr-text">${r.text}</div><div class="cr-sub">${r.sub}</div></div>
     </div>`).join('');
 }
+function checkKey(e,key){ if(e.key!=='Enter'&&e.key!==' ') return; e.preventDefault(); toggleCheck(key);
+  const el=document.querySelector(`.check-row[data-ck="${key}"]`); if(el) el.focus(); }
 function toggleCheck(key){ const log=getLog(viewDate); log[key]=!log[key]; saveState(); renderAll(); }
 
 function renderWeekCounters(){
@@ -1908,7 +2014,7 @@ function renderWeekCounters(){
 function renderDateNav(){
   document.getElementById('dateMain').textContent = prettyDate(viewDate);
   document.getElementById('dateSub').textContent = parseDate(viewDate).toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
-  const log = getLog(viewDate);
+  const log = peekLog(viewDate);
   document.getElementById('dtTraining').classList.toggle('on', log.dayType==='training');
   document.getElementById('dtRest').classList.toggle('on', log.dayType==='rest');
 }
@@ -1946,13 +2052,13 @@ function renderRamp(){
     cp.innerHTML = '';
   }
 }
-function acceptRamp(nt){ state.settings.rsTarget=nt; state.settings.rampLevelStart=currentDate; saveState(); renderRamp(); renderRings(); toast(`RS target raised to ${nt}g 🚀`); }
+function acceptRamp(nt){ state.settings.rsTarget=nt; state.settings.rampLevelStart=currentDate; restampToday(); saveState(); renderRamp(); renderRings(); toast(`RS target raised to ${nt}g 🚀`); }
 function dismissRamp(){ state.coachDismissed[state.settings.rsTarget]=currentDate; saveState(); renderRamp(); toast('Holding current level'); }
 
 function renderWeight(){
   const avg = weightRolling7(currentDate);
   document.getElementById('weightAvgTac').textContent = avg? `7-day avg ${avg.toFixed(1)} lbs` : 'no data yet';
-  const todayW = getLog(currentDate).weight;
+  const todayW = peekLog(currentDate).weight;
   document.getElementById('weightInput').value = todayW || '';
   renderWeightChart();
 }
@@ -1974,12 +2080,17 @@ function renderWeightChart(){
   let minW=Math.min(...weights)-2, maxW=Math.max(...weights)+2;
   if(maxW-minW<2){ maxW+=1; minW-=1; }
   const cw=w-pad.l-pad.r, ch=h-pad.t-pad.b;
-  const xS=i=>pad.l+(i/(dates.length-1))*cw;
+  /* x is scaled by DATE, not sample index — gaps in logging must not compress time
+     or the trend slope lies. */
+  const dnums=dates.map(d=>parseDate(d).getTime()/86400000);
+  const span=Math.max(1, dnums[dnums.length-1]-dnums[0]);
+  const xS=i=>pad.l+((dnums[i]-dnums[0])/span)*cw;
   const yS=v=>pad.t+((maxW-v)/(maxW-minW))*ch;
   ctx.strokeStyle='#20202c'; ctx.lineWidth=1; ctx.font='10px JetBrains Mono'; ctx.fillStyle='#5a5a68'; ctx.textAlign='right';
   for(let i=0;i<=4;i++){ const y=pad.t+(i/4)*ch; ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke();
     ctx.fillText((maxW-(i/4)*(maxW-minW)).toFixed(0), pad.l-5, y+3); }
-  const avgPts = dates.map((d,i)=>{ let s=0,n=0; for(let k=Math.max(0,i-6);k<=i;k++){s+=weights[k];n++;} return s/n; });
+  const avgPts = dates.map((d,i)=>{ const lo=dnums[i]-6; let s=0,n=0;   // true 7-DAY window, not last-7-entries
+    for(let k=i;k>=0 && dnums[k]>=lo;k--){ s+=weights[k]; n++; } return s/n; });
   ctx.strokeStyle='#22c55e'; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.beginPath();
   avgPts.forEach((v,i)=>{ const x=xS(i),y=yS(v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); ctx.setLineDash([]);
   ctx.strokeStyle='#4a9eff'; ctx.lineWidth=2; ctx.beginPath();
@@ -1994,6 +2105,11 @@ function renderBodyComp(){
   const bc = latestBodyComp();
   const grid = document.getElementById('bcStats');
   const note = document.getElementById('bcNote');
+  if(!grid) return;
+  const tac = document.getElementById('bcLastTac');
+  if(tac) tac.textContent = bc ? `last ${bc.date.slice(5)}` : 'measure weekly';
+  const wIn=document.getElementById('bcWaist'), nIn=document.getElementById('bcNeck');
+  if(wIn){ wIn.placeholder = bc? `last ${bc.waist}` : 'e.g. 36.5'; nIn.placeholder = bc? `last ${bc.neck}` : 'e.g. 15.5'; }
   if(!bc || bc.bf==null){
     grid.innerHTML = `<div class="stat-box"><div class="sb-lab">Body fat</div><div class="sb-val muted">—</div><div class="sb-sub">enter waist + neck</div></div>
       <div class="stat-box"><div class="sb-lab">Lean mass</div><div class="sb-val muted">—</div><div class="sb-sub">needs weight too</div></div>`;
@@ -2044,6 +2160,17 @@ function setPlanDay(d){ planDay=d; renderPlan(); }
 function setPlanMode(m){ planMode=m; renderPlan(); }
 function loadPlanIntoToday(){
   const plan = DAY_PLAN[planDay]; if(!plan) return;
+  const existing = countMeals(peekLog(currentDate));
+  if(existing){
+    showConfirmModal({ icon:'🍽', title:"Replace today's meals?",
+      body:`Loading <b>${planDay} · ${planMode}</b> will replace the <b>${existing}</b> item${existing===1?'':'s'} already logged today.`,
+      confirmText:'Replace', onConfirm:doLoadPlan });
+    return;
+  }
+  doLoadPlan();
+}
+function doLoadPlan(){
+  const plan = DAY_PLAN[planDay]; if(!plan) return;
   const log = getLog(currentDate);
   ['breakfast','midMorning','lunch','preGym','dinner','postGym','flex'].forEach(s=> log.meals[s]=[]);
   Object.keys(plan).forEach(sid=>{ plan[sid].forEach(fid=> log.meals[sid].push({id:state._seq++, foodId:fid, servings:1})); });
@@ -2083,7 +2210,7 @@ function getShop(){
 function renderShop(){
   const sh=getShop();
   document.getElementById('shopStaples').innerHTML = SHOP_STAPLES.map(sec=>{
-    const rows = sec.items.map(it=>`<div class="check-row ${sh.staples[it]?'done':''}" data-key="${it}"><div class="check-box">✓</div><div class="cr-text">${it}</div></div>`).join('');
+    const rows = sec.items.map(it=>`<div class="check-row ${sh.staples[it]?'done':''}" role="checkbox" aria-checked="${!!sh.staples[it]}" tabindex="0" data-key="${it}"><div class="check-box" aria-hidden="true">✓</div><div class="cr-text">${it}</div></div>`).join('');
     return `<div class="shop-section-title">${sec.section}</div>${rows}`;
   }).join('');
   document.getElementById('shopDayPills').innerHTML = PLAN_DAY_ORDER.map(d=>
@@ -2098,7 +2225,7 @@ function renderShop(){
     Object.keys(counts).forEach(id=>{ const f=FOOD_MAP[id]; if(!f)return; const sec=CAT_SECTION[f.cat]||'Other'; (bySec[sec]=bySec[sec]||[]).push({id,name:f.name,serv:f.serv,count:counts[id]}); });
     gen.innerHTML = GEN_SECTION_ORDER.filter(s=>bySec[s]).map(sec=>{
       const rows=bySec[sec].sort((a,b)=>a.name.localeCompare(b.name)).map(o=>
-        `<div class="check-row ${sh.gen[o.id]?'done':''}" data-gid="${o.id}"><div class="check-box">✓</div><div class="cr-text">${o.name} <span class="muted" style="font-size:0.72rem">· ${o.serv}${o.count>1?` ×${o.count}`:''}</span></div></div>`).join('');
+        `<div class="check-row ${sh.gen[o.id]?'done':''}" role="checkbox" aria-checked="${!!sh.gen[o.id]}" tabindex="0" data-gid="${o.id}"><div class="check-box" aria-hidden="true">✓</div><div class="cr-text">${o.name} <span class="muted" style="font-size:0.72rem">· ${o.serv}${o.count>1?` ×${o.count}`:''}</span></div></div>`).join('');
       return `<div class="shop-section-title">${sec}</div>${rows}`;
     }).join('');
   }
@@ -2185,7 +2312,7 @@ function setRefTab(t){ refTab=t; renderRef(); }
 function openPicker(slotId){
   pickerSlot = slotId; pickerCat = frequentFoodIds(1).length ? 'quick' : 'all';
   const slot = SLOTS.find(s=>s.id===slotId);
-  const sName = slot? slotDisplay(slot, getLog(viewDate).dayType).name : 'meal';
+  const sName = slot? slotDisplay(slot, peekLog(viewDate).dayType).name : 'meal';
   document.getElementById('foodModalTitle').textContent = 'Add to ' + sName;
   document.getElementById('foodSearch').value='';
   renderCatTabs(); renderFoodList('');
@@ -2202,10 +2329,11 @@ function renderFoodList(query){
   const q=(query||'').toLowerCase().trim();
   let list;
   if(pickerCat==='quick'){
-    list = frequentFoodIds().map(id=>FOOD_MAP[id]).filter(Boolean);
+    list = frequentFoodIds().map(id=>FOOD_MAP[id]).filter(f=>f && !f.archived);
     if(q) list = list.filter(f=>f.name.toLowerCase().includes(q));
   } else {
     list = ALL_FOODS.filter(f=>{
+      if(f.archived) return false;
       if(pickerCat==='custom'){ if(!f.custom) return false; }
       else if(pickerCat!=='all' && f.cat!==pickerCat) return false;
       if(q && !f.name.toLowerCase().includes(q)) return false;
@@ -2220,9 +2348,10 @@ function renderFoodList(query){
     const usual = u ? `<span class="fi-usual">usually ${u.grams!=null ? (u.unit==='g'? Math.round(u.grams)+' g' : (Math.round(u.grams/OZ_G*10)/10)+' oz') : (Math.round((u.servings||1)*100)/100)+'×'}</span>` : '';
     return `<div class="food-item">
       <div class="fi-main">
-        <div class="fi-name">${star}${f.name} ${entryFlags(f)}</div>
-        <div class="fi-serv">${f.serv} ${usual}</div>
+        <div class="fi-name">${star}${esc(f.name)} ${entryFlags(f)}</div>
+        <div class="fi-serv">${esc(f.serv)} ${usual}</div>
         <div class="fi-macros">${rsv}${f.cal}cal · P${f.p} C${f.c} F${f.f}</div>
+        ${f.note?`<div class="fi-serv" style="color:var(--rs)">ⓘ ${esc(f.note)}</div>`:''}
       </div>
       <button class="fi-add" onclick="pickFood('${f.id}')">+</button>${del}
     </div>`;
@@ -2267,15 +2396,27 @@ function saveCustomFood(){
   document.getElementById('customModal').classList.remove('open');
   if(pickerSlot){
     if(food.flags && food.flags.length){ pendingAdd={slot:pickerSlot, foodId:food.id}; showWarning(food); }
-    else { addFood(currentDate, pickerSlot, food.id); toast(`Added ${name}`); closePicker(); renderAll(); }
+    else { addFood(viewDate, pickerSlot, food.id); toast(`Added ${name}`); closePicker(); renderAll(); }
   } else { toast(`Saved ${name}`); }
   if(document.getElementById('foodModal').classList.contains('open')) renderFoodList(document.getElementById('foodSearch').value);
 }
+/* Deleting a food that appears in history would silently blank those days' macros
+   and XP (dayTotals skips unknown ids). Used foods are archived instead: hidden
+   from the picker, kept in FOOD_MAP so every logged day still computes correctly. */
 function deleteCustomFood(id){
-  state.customFoods=(state.customFoods||[]).filter(f=>f.id!==id);
-  rebuildFoods(); saveState();
-  renderFoodList(document.getElementById('foodSearch').value);
-  toast('Custom food removed');
+  const used = (foodUsage()[id]||{}).count||0;
+  const doRemove=()=>{
+    if(used){ const f=(state.customFoods||[]).find(x=>x.id===id); if(f) f.archived=true; }
+    else state.customFoods=(state.customFoods||[]).filter(f=>f.id!==id);
+    rebuildFoods(); saveState();
+    renderFoodList(document.getElementById('foodSearch').value);
+    toast(used?'Hidden from picker — history kept':'Custom food removed');
+  };
+  if(used){
+    showConfirmModal({ icon:'🗄', title:'Hide this food?',
+      body:`<b>${esc((FOOD_MAP[id]||{}).name||'This food')}</b> appears in <b>${used}</b> logged entr${used===1?'y':'ies'}. It will be hidden from the picker but kept behind the scenes so your history and XP stay intact.`,
+      confirmText:'Hide', onConfirm:doRemove });
+  } else doRemove();
 }
 function pickFood(foodId){
   const food = FOOD_MAP[foodId]; if(!food) return;
@@ -2287,23 +2428,35 @@ function pickFood(foodId){
     toast(`Added ${food.name} · ${entryQty(food,e)}`); closePicker(); renderAll();
   }
 }
-function showWarning(food){
-  const info = FLAG_INFO[food.flags[0]];
-  document.getElementById('warnIcon').textContent = info.icon;
-  document.getElementById('warnTitle').textContent = info.label;
-  const extra = food.flags.length>1 ? ` It also flags: ${food.flags.slice(1).map(f=>FLAG_INFO[f].label.toLowerCase()).join(', ')}.` : '';
-  document.getElementById('warnBody').innerHTML = `<b>${food.name}</b> ${info.sentence}${extra} Log anyway?`;
+/* Generic confirm dialog (reuses the warn modal chrome). onConfirm runs only on
+   the confirm button; cancel/backdrop discards it. */
+let warnYes=null;
+function showConfirmModal(o){
+  document.getElementById('warnIcon').textContent = o.icon||'⚠️';
+  document.getElementById('warnTitle').textContent = o.title||'Are you sure?';
+  document.getElementById('warnBody').innerHTML = o.body||'';
+  document.getElementById('warnConfirm').textContent = o.confirmText||'Confirm';
+  warnYes = o.onConfirm||null;
   document.getElementById('warnModal').classList.add('open');
 }
-function confirmWarning(){
-  if(pendingAdd){ const f=FOOD_MAP[pendingAdd.foodId];
-    addFood(viewDate, pendingAdd.slot, pendingAdd.foodId);
-    toast(`Logged ${f.name}`); }
-  pendingAdd=null;
-  document.getElementById('warnModal').classList.remove('open');
-  closePicker(); renderAll();
+function showWarning(food){
+  const info = FLAG_INFO[food.flags[0]];
+  const extra = food.flags.length>1 ? ` It also flags: ${food.flags.slice(1).map(f=>FLAG_INFO[f].label.toLowerCase()).join(', ')}.` : '';
+  showConfirmModal({ icon:info.icon, title:info.label, confirmText:'Log anyway',
+    body:`<b>${esc(food.name)}</b> ${info.sentence}${extra} Log anyway?`,
+    onConfirm:()=>{
+      if(pendingAdd){ const f=FOOD_MAP[pendingAdd.foodId];
+        addFood(viewDate, pendingAdd.slot, pendingAdd.foodId);
+        toast(`Logged ${f.name}`); }
+      pendingAdd=null; closePicker(); renderAll();
+    } });
 }
-function cancelWarning(){ pendingAdd=null; document.getElementById('warnModal').classList.remove('open'); }
+function confirmWarning(){
+  document.getElementById('warnModal').classList.remove('open');
+  const fn=warnYes; warnYes=null;
+  if(fn) fn();
+}
+function cancelWarning(){ warnYes=null; pendingAdd=null; document.getElementById('warnModal').classList.remove('open'); }
 
 function loadMealTemplate(slotId, idx){
   const tmpls = MEAL_TEMPLATES[slotId]; if(!tmpls) return;
@@ -2318,7 +2471,7 @@ function getCombos(slot){ if(!state.mealCombos) state.mealCombos={}; if(!state.m
 function openMealMenu(slot){
   mealMenuSlot=slot;
   const s=SLOTS.find(x=>x.id===slot);
-  document.getElementById('mealMenuTitle').textContent = s? slotDisplay(s, getLog(viewDate).dayType).name : 'Meal';
+  document.getElementById('mealMenuTitle').textContent = s? slotDisplay(s, peekLog(viewDate).dayType).name : 'Meal';
   renderMealMenu(slot);
   document.getElementById('mealMenu').classList.add('open');
 }
@@ -2327,13 +2480,13 @@ function renderMealMenu(slot){
   const last=lastSlotDay(slot, viewDate);
   const tmpls=MEAL_TEMPLATES[slot]||[];
   const combos=getCombos(slot);
-  const cur=(getLog(viewDate).meals[slot]||[]).length;
+  const cur=((peekLog(viewDate).meals||{})[slot]||[]).length;
   let h='';
   if(last){
     const names=(state.dailyLogs[last].meals[slot]||[]).map(e=>FOOD_MAP[e.foodId]?FOOD_MAP[e.foodId].name:'').filter(Boolean).slice(0,3).join(', ');
-    h+=`<div class="mm-item" onclick="repeatLastSlot('${slot}')"><div class="mm-t">⟲ Repeat ${prettyDate(last)}</div><div class="mm-sub">${names}</div></div>`;
+    h+=`<div class="mm-item" onclick="repeatLastSlot('${slot}')"><div class="mm-t">⟲ Repeat ${prettyDate(last)}</div><div class="mm-sub">${esc(names)}</div></div>`;
   }
-  combos.forEach(c=> h+=`<div class="mm-item" onclick="loadCombo('${slot}',${c.id})"><div class="mm-t">⚡ ${c.name}</div><button class="mm-del" onclick="event.stopPropagation();delCombo('${slot}',${c.id})">🗑</button></div>`);
+  combos.forEach(c=> h+=`<div class="mm-item" onclick="loadCombo('${slot}',${c.id})"><div class="mm-t">⚡ ${esc(c.name)}</div><button class="mm-del" onclick="event.stopPropagation();delCombo('${slot}',${c.id})">🗑</button></div>`);
   tmpls.forEach((t,i)=> h+=`<div class="mm-item" onclick="loadMealTemplate('${slot}',${i})"><div class="mm-t">📋 ${t.name}</div></div>`);
   if(cur) h+=`<div class="mm-item mm-save" onclick="saveCombo('${slot}')"><div class="mm-t">💾 Save current meal as a combo</div></div>`;
   if(!h) h=`<p class="muted" style="font-size:0.85rem">Nothing saved yet — log this meal, then save it as a combo for one-tap reuse.</p>`;
@@ -2347,7 +2500,7 @@ function repeatLastSlot(slot){
   saveState(); closeMealMenu(); renderAll(); toast(`Repeated ${prettyDate(d)}'s meal`);
 }
 function saveCombo(slot){
-  const items=(getLog(viewDate).meals[slot]||[]).map(e=>({foodId:e.foodId, servings:e.servings, grams:e.grams, unit:e.unit}));
+  const items=((peekLog(viewDate).meals||{})[slot]||[]).map(e=>({foodId:e.foodId, servings:e.servings, grams:e.grams, unit:e.unit}));
   if(!items.length){ toast('Nothing to save'); return; }
   const nm=items.slice(0,3).map(i=>{ const f=FOOD_MAP[i.foodId]; return f? f.name.split(',')[0].split('(')[0].trim() : ''; }).filter(Boolean).join(' + ') + (items.length>3?` +${items.length-3}`:'');
   getCombos(slot).push({ id:state._seq++, name:nm, items });
@@ -2364,8 +2517,18 @@ function copyPrevDay(){
   const dates=Object.keys(state.dailyLogs).filter(d=> d<viewDate && dayLogged(d)).sort();
   if(!dates.length){ toast('No previous day to copy'); return; }
   const src=dates[dates.length-1]; const log=getLog(viewDate);
-  SLOTS.forEach(s=> (state.dailyLogs[src].meals[s.id]||[]).forEach(e=> log.meals[s.id].push(copyEntry(e))));
-  saveState(); renderAll(); toast(`Copied ${prettyDate(src)}`);
+  const doCopy=()=>{
+    SLOTS.forEach(s=> (state.dailyLogs[src].meals[s.id]||[]).forEach(e=> log.meals[s.id].push(copyEntry(e))));
+    saveState(); renderAll(); toast(`Copied ${prettyDate(src)}`);
+  };
+  const existing=countMeals(log);
+  if(existing){ // guards the easy double-tap that silently doubles the whole day
+    showConfirmModal({ icon:'⟲', title:'Copy on top?',
+      body:`This day already has <b>${existing}</b> item${existing===1?'':'s'}. Copying <b>${prettyDate(src)}</b> adds its items on top of them.`,
+      confirmText:'Copy anyway', onConfirm:doCopy });
+    return;
+  }
+  doCopy();
 }
 
 /* ---------- HANDLERS ---------- */
@@ -2383,7 +2546,7 @@ function openAmount(slot,id){
   amtEdit={slot,id};
   document.getElementById('amtTitle').textContent = food? food.name : 'Amount';
   document.getElementById('amtSub').innerHTML = sg
-    ? `1 serving (${food.serv}) ≈ <b>${Math.round(sg)} g · ${(sg/OZ_G).toFixed(1)} oz</b>. Enter servings, oz, or grams.`
+    ? `1 serving (${esc(food.serv)}) ≈ <b>${Math.round(sg)} g · ${(sg/OZ_G).toFixed(1)} oz</b>. Enter servings, oz, or grams.`
     : `Weighing isn't set up for this item — enter servings.`;
   document.querySelectorAll('#amtUnit [data-u="oz"],#amtUnit [data-u="g"]').forEach(b=> b.style.display = sg?'':'none');
   if(e.grams!=null && sg){ amtUnit = e.unit || 'oz'; document.getElementById('amtVal').value = amtUnit==='g' ? Math.round(e.grams) : (e.grams/OZ_G).toFixed(1); }
@@ -2414,12 +2577,23 @@ function switchView(v){
   document.getElementById('view-'+v).classList.add('active');
   document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
   window.scrollTo(0,0);
-  if(v==='trends'){ renderRamp(); renderWeight(); }
+  if(v==='trends'){ renderRamp(); renderWeight(); renderBodyComp(); }
   if(v==='level') renderLevel();
   if(v==='gym') renderGym();
   if(v==='plan') renderPlan();
   if(v==='shop') renderShop();
   if(v==='ref') renderRef();
+}
+/* Re-render whichever view is on screen (after a sync apply or day rollover). */
+function refreshActiveView(){
+  const active=document.querySelector('.view.active'); if(!active) return;
+  const v=active.id.replace('view-','');
+  if(v==='trends'){ renderRamp(); renderWeight(); renderBodyComp(); }
+  else if(v==='level') renderLevel();
+  else if(v==='gym') renderGym();
+  else if(v==='plan') renderPlan();
+  else if(v==='shop') renderShop();
+  else if(v==='ref') renderRef();
 }
 
 /* ---------- RENDER ALL (Today) ---------- */
@@ -2464,9 +2638,9 @@ function renderGoalCard(){
     html+=`<div class="gc-goal ${pr&&pr.done?'done':''}" onclick="openGoalModal('primary')">
       <div class="gc-g-icon">${GOAL_ICON[pg.type]||'🎯'}</div>
       <div class="gc-g-main">
-        <div class="gc-g-title">${pr&&pr.done?'🏆 ':''}${goalTitle(pg)}</div>
+        <div class="gc-g-title">${pr&&pr.done?'🏆 ':''}${esc(goalTitle(pg))}</div>
         <div class="gc-g-bar"><span style="width:${((pr?pr.pct:0)*100).toFixed(0)}%"></span></div>
-        <div class="gc-g-sub">${line}${pg.deadline?` · by ${pg.deadline}`:''}${pr&&pr.done?' · complete — set your next!':''}</div>
+        <div class="gc-g-sub">${esc(line)}${pg.deadline?` · by ${esc(pg.deadline)}`:''}${pr&&pr.done?' · complete — set your next!':''}</div>
       </div>
     </div>`;
   }
@@ -2517,7 +2691,7 @@ function openGoalModal(slot, isWall){
   goalDraftType = (existing && !existing.done)? existing.type : 'weight';
   const m=document.getElementById('goalModal'); m.dataset.slot=slot;
   document.getElementById('goalModalTitle').textContent = isWall ? '🏆 Goal complete — set your next!' : 'Primary goal';
-  document.getElementById('goalClose').style.display = isWall ? 'none' : 'grid';
+  document.getElementById('goalClose').style.display = 'grid'; // always escapable — wallAck is already set, so dismissing won't re-trigger the wall
   renderGoalTypes(); renderGoalFields(existing && !existing.done ? existing : null);
   document.getElementById('goalClear').style.display = (existing && !isWall) ? 'block' : 'none';
   m.classList.add('open');
@@ -2539,11 +2713,11 @@ function renderGoalFields(cur){
     h=`<div class="gf"><label>Target streak (days logged in a row)</label><input id="gfTarget" type="number" value="${cur?cur.target:30}" placeholder="30"></div>`;
   } else if(goalDraftType==='lift'){
     const recents=exerciseNames();
-    h=`<div class="gf"><label>Exercise</label><input list="glExNames" id="gfExercise" type="text" value="${cur&&cur.exercise?cur.exercise.replace(/"/g,'&quot;'):''}" placeholder="e.g. Bench press"><datalist id="glExNames">${recents.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist></div>
+    h=`<div class="gf"><label>Exercise</label><input list="glExNames" id="gfExercise" type="text" value="${cur&&cur.exercise?esc(cur.exercise):''}" placeholder="e.g. Bench press"><datalist id="glExNames">${recents.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
        <div class="gf"><label>Target top weight (lbs)</label><input id="gfTarget" type="number" inputmode="decimal" value="${cur?cur.target:''}" placeholder="e.g. 225"></div>`;
   } else {
-    h=`<div class="gf"><label>Goal name</label><input id="gfLabel" type="text" value="${cur&&cur.label?cur.label.replace(/"/g,'&quot;'):''}" placeholder="e.g. Establish strength baselines"></div>
-       <div class="gf-grid"><div class="gf"><label>Target #</label><input id="gfTarget" type="number" value="${cur?cur.target:100}"></div><div class="gf"><label>Unit</label><input id="gfUnit" type="text" value="${cur&&cur.unit?cur.unit:''}" placeholder="%, lbs, sessions…"></div></div>
+    h=`<div class="gf"><label>Goal name</label><input id="gfLabel" type="text" value="${cur&&cur.label?esc(cur.label):''}" placeholder="e.g. Establish strength baselines"></div>
+       <div class="gf-grid"><div class="gf"><label>Target #</label><input id="gfTarget" type="number" value="${cur?cur.target:100}"></div><div class="gf"><label>Unit</label><input id="gfUnit" type="text" value="${cur&&cur.unit?esc(cur.unit):''}" placeholder="%, lbs, sessions…"></div></div>
        <div class="gf"><label>Current progress</label><input id="gfCurrent" type="number" value="${cur?(cur.current||0):0}"></div>`;
   }
   document.getElementById('goalFields').innerHTML=h;
@@ -2552,7 +2726,11 @@ function saveGoal(){
   const slot=document.getElementById('goalModal').dataset.slot||'primary';
   const num=id=>{ const el=document.getElementById(id); const v=el?parseFloat(el.value):NaN; return isNaN(v)?null:v; };
   const goal={type:goalDraftType, done:false, createdAt:todayStr()};
-  if(goalDraftType==='weight'){ const tg=num('gfTarget'); if(tg==null){toast('Enter a target weight');return;} goal.target=tg; goal.start=latestWeight()||tg; const dl=document.getElementById('gfDeadline').value; if(dl) goal.deadline=dl; }
+  if(goalDraftType==='weight'){ const tg=num('gfTarget'); if(tg==null){toast('Enter a target weight');return;}
+    const lw=latestWeight();
+    if(lw!=null && Math.abs(tg-lw)<=0.2){ toast('Target equals your current weight — pick a real target'); return; }
+    goal.target=tg; if(lw!=null) goal.start=lw;  // no weight yet -> first logged weight becomes the start
+    const dl=document.getElementById('gfDeadline').value; if(dl) goal.deadline=dl; }
   else if(goalDraftType==='rs_ramp'){ goal.target=40; }
   else if(goalDraftType==='streak'){ goal.target=num('gfTarget')||30; }
   else if(goalDraftType==='lift'){ const exn=(document.getElementById('gfExercise').value||'').trim(); if(!exn){toast('Enter an exercise');return;} const tg=num('gfTarget'); if(tg==null){toast('Enter a target weight');return;} goal.exercise=exn; goal.target=tg; }
@@ -2572,7 +2750,7 @@ function isSessionPR(name,date){
 }
 function renderGym(){
   const el=document.getElementById('gymContent'); if(!el) return;
-  const date=viewDate; const wo=getWorkout(date); const dt=getLog(date).dayType;
+  const date=viewDate; const wo=peekWorkout(date); const dt=peekLog(date).dayType||'training';
   const done=wo.filter(exLogged).length, total=wo.length;
   const progress = total ? `<div class="wo-progress"><div class="wo-progress-bar"><span style="width:${Math.round(done/total*100)}%"></span></div><div class="wo-progress-txt">${done}/${total} done</div></div>` : '';
   const exRows = wo.length ? wo.map(ex=>{
@@ -2584,7 +2762,7 @@ function renderGym(){
     return `<div class="wo-ex ${isDone?'is-done':''}" onclick="openExercise(${ex.id})">
       <div class="wo-check">${isDone?'✓':''}</div>
       <div class="wo-ex-body">
-        <div class="wo-ex-head"><span class="wo-ex-name">${ex.type==='cardio'?'🏃':'🏋'} ${ex.name}${pr?' <span class="pr-badge">PR!</span>':''}</span>
+        <div class="wo-ex-head"><span class="wo-ex-name">${ex.type==='cardio'?'🏃':'🏋'} ${esc(ex.name)}${pr?' <span class="pr-badge">PR!</span>':''}</span>
           <button class="e-del" onclick="event.stopPropagation();deleteExercise(${ex.id})">🗑</button></div>
         <div class="wo-ex-detail">${detail}</div>
       </div></div>`;
@@ -2596,7 +2774,7 @@ function renderGym(){
     const sess=exerciseSessions(n); const last=sess[sess.length-1]; const top=exerciseTopWeight(n);
     const g=(EXERCISE_LIB.find(e=>e.name.toLowerCase()===n.toLowerCase())||{}).group||'';
     return `<div class="sum-row">
-      <div class="sum-top"><span class="sum-n">${n}</span><span class="sum-pr">PR ${top}</span></div>
+      <div class="sum-top"><span class="sum-n">${esc(n)}</span><span class="sum-pr">PR ${top}</span></div>
       <div class="sum-last"><span>${formatSets(last.sets)}</span><span class="sum-date">${last.date.slice(5)}</span></div>
       ${g?`<div class="sum-grp">${g}</div>`:''}</div>`;
   }).join('') : `<p class="muted" style="font-size:0.8rem">Log a workout — each exercise's last sets &amp; PR show up here.</p>`;
@@ -2621,8 +2799,11 @@ function startRoutine(id){
     if(lib.type==='strength') e.sets=[]; else e.mins=0;
     wo.push(e);
   });
-  getLog(viewDate).dayType='training';
-  saveState(); renderGym(); renderAll(); toast(`${r.name} loaded — check 'em off 💪`);
+  const log=getLog(viewDate);
+  const flipped = log.dayType!=='training';
+  log.dayType='training';
+  saveState(); renderGym(); renderAll();
+  toast(flipped ? `${r.name} loaded — day switched to Training 🏋` : `${r.name} loaded — check 'em off 💪`);
 }
 /* ----- exercise library picker ----- */
 let exLibGroup='all';
@@ -2638,19 +2819,20 @@ function renderExLibList(q){
   if(exLibGroup==='mine'){ list=exerciseNames().filter(n=>!EXERCISE_LIB.some(e=>e.name.toLowerCase()===n.toLowerCase())).map(n=>({id:n,name:n,group:'custom',type:'strength',custom:true})); }
   else { list=EXERCISE_LIB.filter(e=> exLibGroup==='all'||e.group===exLibGroup); }
   if(q) list=list.filter(e=>e.name.toLowerCase().includes(q));
-  let rows=list.map(e=>`<div class="food-item"><div class="fi-main"><div class="fi-name">${e.type==='cardio'?'🏃':'🏋'} ${e.name}</div><div class="fi-serv">${e.group||''}</div></div><button class="fi-add" onclick="pickLibExercise('c:${encodeURIComponent(e.name)}','${e.type}')">+</button></div>`).join('');
-  const createRow = `<div class="food-item"><div class="fi-main"><div class="fi-name">➕ ${q?`Add "${q}"`:'Custom exercise'}</div></div><button class="fi-add" onclick="pickLibExercise('c:${encodeURIComponent(q)}','strength')">+</button></div>`;
+  /* Names ride in data- attributes (delegated listener in bindEvents), never in
+     onclick strings — a quote in a custom name must not become executable JS. */
+  let rows=list.map(e=>`<div class="food-item" data-exname="${esc(e.name)}" data-extype="${e.type}"><div class="fi-main"><div class="fi-name">${e.type==='cardio'?'🏃':'🏋'} ${esc(e.name)}</div><div class="fi-serv">${esc(e.group||'')}</div></div><button class="fi-add">+</button></div>`).join('');
+  const createRow = `<div class="food-item" data-exname="${esc(q)}" data-extype="strength"><div class="fi-main"><div class="fi-name">➕ ${q?`Add "${esc(q)}"`:'Custom exercise'}</div></div><button class="fi-add">+</button></div>`;
   document.getElementById('exLibList').innerHTML = (rows||'') + createRow;
 }
-function pickLibExercise(key,type){
+function pickLibExercise(name,type){
   document.getElementById('exLibModal').classList.remove('open');
-  const nm = key.startsWith('c:') ? decodeURIComponent(key.slice(2)) : (EX_MAP[key]?EX_MAP[key].name:'');
-  openExercise(null, { name:nm, type:type||'strength' });
+  openExercise(null, { name:name||'', type:type||'strength' });
 }
 let exDraft=null;
 function setsUniform(sets){ if(!sets||sets.length<=1) return true; return sets.every(s=>s.weight===sets[0].weight && s.reps===sets[0].reps); }
 function openExercise(id, preset){
-  const wo=getWorkout(viewDate);
+  const wo=peekWorkout(viewDate);
   if(id!=null){
     const ex=wo.find(e=>e.id===id); if(!ex) return;
     exDraft=JSON.parse(JSON.stringify(ex));
@@ -2723,8 +2905,8 @@ function renderExerciseModal(){
           <div class="gf"><label>Distance (mi, optional)</label><input type="number" inputmode="decimal" value="${exDraft.dist||''}" oninput="exDraft.dist=this.value"></div>`;
   }
   document.getElementById('exBody').innerHTML=`
-    <input list="exNames" id="exName" class="ex-name-input" placeholder="Exercise name" value="${(exDraft.name||'').replace(/"/g,'&quot;')}" oninput="exDraft.name=this.value; updateLastHint();">
-    <datalist id="exNames">${recents.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist>
+    <input list="exNames" id="exName" class="ex-name-input" placeholder="Exercise name" value="${esc(exDraft.name||'')}" oninput="exDraft.name=this.value; updateLastHint();">
+    <datalist id="exNames">${recents.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
     <div class="daytype-toggle" id="exType" style="margin:0.7rem 0">
       <button data-xt="strength" class="${exDraft.type==='strength'?'on':''}">🏋 Strength</button>
       <button data-xt="cardio" class="${exDraft.type==='cardio'?'on':''}">🏃 Cardio</button>
@@ -2762,12 +2944,24 @@ function saveExercise(){
   renderGym(); renderAll();
   if(pr) toast(`🏆 New PR on ${name}! +50 XP`); else toast('Logged 💪');
 }
-function deleteExercise(id){ const wo=getWorkout(viewDate); const i=wo.findIndex(e=>e.id===id); if(i>=0){ wo.splice(i,1); saveState(); renderGym(); renderAll(); toast('Removed'); } }
+function deleteExercise(id){ const wo=peekWorkout(viewDate); const i=wo.findIndex(e=>e.id===id); if(i>=0){ wo.splice(i,1); saveState(); renderGym(); renderAll(); toast('Removed'); } }
 
 /* ---------- TOAST ---------- */
-let toastTimer=null;
-function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1800); }
+/* Queued: a burst (level-up + achievement + milestone in one tick) shows each in
+   turn instead of the last overwriting the rest. */
+let toastTimer=null; const toastQueue=[];
+function toast(msg){
+  if(toastQueue.length>=4) toastQueue.shift();   // don't build a backlog
+  toastQueue.push(msg);
+  if(!toastTimer) nextToast();
+}
+function nextToast(){
+  const msg=toastQueue.shift();
+  if(msg==null){ toastTimer=null; return; }
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  toastTimer=setTimeout(()=>{ t.classList.remove('show'); toastTimer=setTimeout(nextToast, 250); }, 1600);
+}
 
 /* ---------- SETTINGS ---------- */
 function openSettings(){
@@ -2780,7 +2974,7 @@ function openSettings(){
   document.getElementById('setLeanGoal').value=s.leanGoal||'';
   const u = window.Cloud && window.Cloud.user;
   document.getElementById('syncStatus').innerHTML = u
-    ? `Signed in as <b>${u.email||u.name||'you'}</b> — syncing privately across your devices.
+    ? `Signed in as <b>${esc(u.email||u.name||'you')}</b> — syncing privately across your devices.
        <button class="btn-tmpl" style="margin-top:0.5rem" onclick="Cloud.signOut()">Sign out</button>`
     : `<b>Not signed in</b> — your data is only on this device. Sign in to sync privately across your phone and laptop.
        <button class="btn-primary" style="margin-top:0.5rem" onclick="Cloud.signIn()">Sign in with Google</button>`;
@@ -2791,12 +2985,84 @@ function saveSettings(){
   s.rsTarget=g('setRsTarget')||20; s.rsGoal=g('setRsGoal')||40; s.fiberTarget=g('setFiber')||35;
   s.satCap=g('setSatCap')||15; s.height=g('setHeight')||72;
   const lg=document.getElementById('setLeanGoal').value; s.leanGoal=lg?parseFloat(lg):null;
+  restampToday(); // today is scored against the new targets; past days keep their frozen ones
   saveState(); document.getElementById('settingsModal').classList.remove('open'); renderAll(); toast('Settings saved');
 }
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download='health-protocol-'+todayStr()+'.json'; a.click();
+}
+/* Restore an exported backup. MERGES via mergeStates (nothing local is deleted). */
+function handleImportFile(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let parsed=null;
+    try{ parsed=JSON.parse(reader.result); }catch(e){}
+    if(!parsed || typeof parsed!=='object' || !parsed.dailyLogs){ toast('Not a valid backup file'); return; }
+    const days=Object.keys(parsed.dailyLogs||{}).length;
+    showConfirmModal({ icon:'📥', title:'Import backup?',
+      body:`This backup holds <b>${days}</b> day${days===1?'':'s'} of logs. It will be <b>merged</b> into your current data — nothing here is deleted.`,
+      confirmText:'Import', onConfirm:()=>{
+        const merged=mergeStates(state, parsed);
+        merged.updatedAt=Date.now();
+        applyRemoteState(merged);
+        saveState();
+        document.getElementById('settingsModal').classList.remove('open');
+        toast('Backup imported ✓');
+      } });
+  };
+  reader.readAsText(file);
+}
+
+/* ---------- MODAL KEYBOARD & FOCUS (a11y) ---------- */
+const MODAL_CLOSERS = {
+  warnModal: ()=>cancelWarning(),
+  foodModal: ()=>closePicker(),
+  settingsModal: ()=>document.getElementById('settingsModal').classList.remove('open'),
+  customModal: ()=>document.getElementById('customModal').classList.remove('open'),
+  amountModal: ()=>closeAmount(),
+  mealMenu: ()=>closeMealMenu(),
+  exLibModal: ()=>document.getElementById('exLibModal').classList.remove('open'),
+  exModal: ()=>document.getElementById('exModal').classList.remove('open'),
+  goalModal: ()=>{ goalWallOpen=false; document.getElementById('goalModal').classList.remove('open'); }
+};
+/* warnModal sits on top (z-index 120); otherwise later-in-DOM paints above. */
+function topOpenModal(){
+  const open=[...document.querySelectorAll('.modal-backdrop.open')];
+  if(!open.length) return null;
+  return open.find(m=>m.id==='warnModal') || open[open.length-1];
+}
+function bindModalA11y(){
+  document.addEventListener('keydown', e=>{
+    const top=topOpenModal(); if(!top) return;
+    if(e.key==='Escape'){ const fn=MODAL_CLOSERS[top.id]; if(fn){ e.preventDefault(); fn(); } return; }
+    if(e.key!=='Tab') return;   // trap Tab inside the top-most open modal
+    const foci=[...top.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+      .filter(el=>el.offsetParent!==null && !el.disabled);
+    if(!foci.length) return;
+    const first=foci[0], last=foci[foci.length-1];
+    if(e.shiftKey && (document.activeElement===first || !top.contains(document.activeElement))){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && (document.activeElement===last || !top.contains(document.activeElement))){ e.preventDefault(); first.focus(); }
+  });
+  /* Return focus to the opener when the last modal closes; give initial focus to
+     modals that don't set their own. */
+  let lastFocused=null;
+  const obs=new MutationObserver(muts=>muts.forEach(m=>{
+    const el=m.target;
+    const was=(m.oldValue||'').split(/\s+/).includes('open');
+    const is=el.classList.contains('open');
+    if(!was && is){
+      if(!document.querySelector('.modal-backdrop.open:not(#'+el.id+')')) lastFocused=document.activeElement;
+      setTimeout(()=>{ if(el.classList.contains('open') && !el.contains(document.activeElement)){
+        const f=el.querySelector('input, select')||el.querySelector('button:not(.icon-btn)')||el.querySelector('button');
+        if(f) f.focus(); } }, 120);
+    } else if(was && !is){
+      if(!document.querySelector('.modal-backdrop.open') && lastFocused && document.contains(lastFocused)){ lastFocused.focus(); lastFocused=null; }
+    }
+  }));
+  document.querySelectorAll('.modal-backdrop').forEach(el=>obs.observe(el,{attributes:true,attributeFilter:['class'],attributeOldValue:true}));
 }
 
 /* ---------- INIT ---------- */
@@ -2817,8 +3083,19 @@ function bindEvents(){
   document.getElementById('settingsModal').addEventListener('click', e=>{ if(e.target.id==='settingsModal') document.getElementById('settingsModal').classList.remove('open'); });
   document.getElementById('settingsSave').onclick=saveSettings;
   document.getElementById('exportData').onclick=exportData;
+  document.getElementById('importData').onclick=()=>document.getElementById('importFile').click();
+  document.getElementById('importFile').addEventListener('change', e=>{ handleImportFile(e.target.files[0]); e.target.value=''; });
   document.getElementById('weightSave').onclick=()=>{ const v=parseFloat(document.getElementById('weightInput').value);
-    if(!v){ toast('Enter a weight'); return; } getLog(currentDate).weight=v; saveState(); renderWeight(); toast('Weight logged ✓'); };
+    if(!v){ toast('Enter a weight'); return; } getLog(currentDate).weight=v; saveState(); renderWeight(); renderBodyComp(); toast('Weight logged ✓'); };
+  document.getElementById('bcSave').onclick=()=>{
+    const w=parseFloat(document.getElementById('bcWaist').value), n=parseFloat(document.getElementById('bcNeck').value);
+    if(!w||!n){ toast('Enter waist and neck'); return; }
+    if(w<=n){ toast('Waist must be larger than neck'); return; }
+    if(!state.bodyComp) state.bodyComp={};
+    state.bodyComp[currentDate]={waist:w,neck:n};
+    document.getElementById('bcWaist').value=''; document.getElementById('bcNeck').value='';
+    saveState(); renderBodyComp(); toast('Measurements logged ✓');
+  };
   document.getElementById('planLoadBtn').onclick=loadPlanIntoToday;
   document.getElementById('shopReset').onclick=resetShopChecks;
   document.getElementById('shopShareBtn').onclick=shareShoppingList;
@@ -2826,6 +3103,15 @@ function bindEvents(){
   document.getElementById('shopStaples').addEventListener('click', e=>{ const r=e.target.closest('[data-key]'); if(r) toggleStaple(r.dataset.key); });
   document.getElementById('shopDayPills').addEventListener('click', e=>{ const b=e.target.closest('[data-day]'); if(b) toggleShopDay(b.dataset.day); });
   document.getElementById('shopGenerated').addEventListener('click', e=>{ const r=e.target.closest('[data-gid]'); if(r) toggleGen(r.dataset.gid); });
+  const shopKeyToggle=e=>{ if(e.key!=='Enter' && e.key!==' ') return;
+    const r=e.target.closest('[data-key],[data-gid]'); if(!r) return; e.preventDefault();
+    const key=r.dataset.key, gid=r.dataset.gid;
+    if(key!=null) toggleStaple(key); else toggleGen(gid);
+    const again=document.querySelector(key!=null?`[data-key="${CSS.escape(key)}"]`:`[data-gid="${CSS.escape(gid)}"]`);
+    if(again) again.focus();   // re-render loses focus; put the keyboard user back on the row
+  };
+  document.getElementById('shopStaples').addEventListener('keydown', shopKeyToggle);
+  document.getElementById('shopGenerated').addEventListener('keydown', shopKeyToggle);
   document.getElementById('planModeToggle').addEventListener('click', e=>{ const b=e.target.closest('[data-pm]'); if(b) setPlanMode(b.dataset.pm); });
   document.getElementById('createFoodBtn').onclick=openCustomFood;
   document.getElementById('customClose').onclick=()=>document.getElementById('customModal').classList.remove('open');
@@ -2851,7 +3137,13 @@ function bindEvents(){
   document.getElementById('exLibClose').onclick=()=>document.getElementById('exLibModal').classList.remove('open');
   document.getElementById('exLibModal').addEventListener('click', e=>{ if(e.target.id==='exLibModal') document.getElementById('exLibModal').classList.remove('open'); });
   document.getElementById('exLibSearch').addEventListener('input', e=> renderExLibList(e.target.value));
+  document.getElementById('exLibList').addEventListener('click', e=>{ const b=e.target.closest('.fi-add'); if(!b) return;
+    const row=b.closest('[data-exname]'); if(row) pickLibExercise(row.dataset.exname, row.dataset.extype); });
   window.addEventListener('resize', ()=>{ if(document.getElementById('view-trends').classList.contains('active')) renderWeightChart(); });
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkDayRollover(); });
+  window.addEventListener('focus', checkDayRollover);
+  setInterval(checkDayRollover, 60000); // catches midnight passing while the app is open
+  bindModalA11y();
 }
 
 function init(){
@@ -2870,7 +3162,7 @@ document.addEventListener('DOMContentLoaded', init);
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBoka43fZK0RIyJNrwfONn7x42IRTr0F8I",
@@ -2895,9 +3187,21 @@ try {
   window.Cloud.saveSharedList = async function(listId, data){
     await setDoc(doc(db, 'sharedLists', listId), data);
   };
+  /* Popups are unreliable inside installed PWAs (iOS standalone especially) — use
+     the redirect flow there, and fall back to it whenever a popup is blocked. */
+  const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  getRedirectResult(auth).catch(e => console.warn('redirect sign-in failed:', e.code, e.message));
   window.Cloud.signIn = async function(){
-    try { const r = await signInWithPopup(auth, new GoogleAuthProvider()); toast(`Signed in as ${r.user.email}`); }
+    const provider = new GoogleAuthProvider();
+    if (isStandalone()) {
+      try { await signInWithRedirect(auth, provider); return; }
+      catch(e){ console.warn('redirect failed, trying popup', e); }
+    }
+    try { const r = await signInWithPopup(auth, provider); toast(`Signed in as ${r.user.email}`); }
     catch(e){
+      if (e.code === 'auth/popup-blocked') {
+        try { await signInWithRedirect(auth, provider); return; } catch(e2){ e = e2; }
+      }
       console.error('sign-in failed:', e.code, e.message, e);
       const map = {
         'auth/operation-not-allowed' : 'Enable Google sign-in in Firebase Console',
@@ -2923,6 +3227,9 @@ try {
     window.Cloud.user = { uid:user.uid, email:user.email, name:user.displayName };
     setSyncUI('connecting');
     const ref = doc(db, 'users', user.uid);
+    const seededKey = 'shp_seeded_' + user.uid;
+    let needSeed = !localStorage.getItem(seededKey);
+    const markSeeded = () => { needSeed = false; localStorage.setItem(seededKey, '1'); };
 
     /* One-time migration: if this account has no doc yet, adopt the legacy public one. */
     try {
@@ -2937,18 +3244,50 @@ try {
     } catch(e){ console.warn('migration skipped', e); }
 
     window.Cloud.push = function(s){
-      setDoc(ref, { json: JSON.stringify(s), updatedAt: s.updatedAt || Date.now(), client: CLIENT_ID })
-        .catch(err => console.warn('cloud push failed', err));
+      const json = JSON.stringify(s);
+      /* Firestore caps a doc at ~1 MB. Warn well before the ceiling — past it,
+         every push fails and sync dies silently while localStorage keeps working. */
+      if (json.length > 800000 && !window.Cloud._sizeWarned) {
+        window.Cloud._sizeWarned = true;
+        toast(`⚠ Synced data at ${(json.length/1048576*100).toFixed(0)}% of the 1 MB limit`);
+      }
+      setDoc(ref, { json, updatedAt: s.updatedAt || Date.now(), client: CLIENT_ID })
+        .then(() => { if (window.Cloud._pushFailed) { window.Cloud._pushFailed = false; setSyncUI(true); } })
+        .catch(err => {
+          console.warn('cloud push failed', err.code, err.message);
+          if (!window.Cloud._pushFailed) {  // toast once per failure streak, not per keystroke
+            toast(err.code === 'invalid-argument'
+              ? 'Sync failed — data exceeds the 1 MB cloud limit'
+              : 'Cloud save failed — changes are on this device only');
+          }
+          window.Cloud._pushFailed = true;
+          setSyncUI('error');
+        });
     };
     window.Cloud.enabled = true;
     lastApplied = 0;
 
     unsub = onSnapshot(ref, snap => {
-      if (!snap.exists()) { window.Cloud.push(state); setSyncUI(true); return; }
+      if (!snap.exists()) { markSeeded(); window.Cloud.push(state); setSyncUI(true); return; }
       if (snap.metadata.hasPendingWrites) return;      // ignore our own optimistic echo
       const data = snap.data();
-      if (!data || !data.json) { setSyncUI(true); return; }
+      if (!data || !data.json) { markSeeded(); setSyncUI(true); return; }
       const remoteUpdated = data.updatedAt || 0;
+      /* First sync of this account on this device: MERGE with the cloud copy.
+         A fresh local state carries a newer wall-clock updatedAt than the cloud
+         doc, so plain last-write-wins here would push a near-empty state over
+         the entire history — the one unrecoverable failure mode. */
+      if (needSeed) {
+        markSeeded();
+        try {
+          const merged = mergeStates(state, JSON.parse(data.json));
+          merged.updatedAt = Date.now();
+          applyRemoteState(merged);
+          lastApplied = state.updatedAt;
+          window.Cloud.push(state);
+        } catch(e){ console.warn('seed merge failed', e); }
+        setSyncUI(true); return;
+      }
       const localUpdated  = state.updatedAt || 0;
       if (remoteUpdated < localUpdated) { window.Cloud.push(state); setSyncUI(true); return; } // local is newer
       if (remoteUpdated === lastApplied) { setSyncUI(true); return; }

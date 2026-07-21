@@ -1,10 +1,13 @@
 // Steve's Health Protocol — service worker (offline shell)
-const CACHE = 'shp-v2';
+const CACHE = 'shp-v4';
 const ASSETS = [
   './',
   './index.html',
+  './list.html',
   './manifest.webmanifest',
-  './icon.svg'
+  './icon.svg',
+  './icon-180.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -39,6 +42,12 @@ self.addEventListener('fetch', (e) => {
         caches.open(CACHE).then((c) => c.put(req, copy));
       }
       return res;
-    }).catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html')))
+    }).catch(() => caches.match(req).then((hit) => {
+      if (hit) return hit;
+      // Only page navigations fall back to the app shell — returning HTML for a
+      // failed asset request (icon, script) would poison callers expecting that type.
+      if (req.mode === 'navigate') return caches.match('./index.html');
+      return Response.error();
+    }))
   );
 });
