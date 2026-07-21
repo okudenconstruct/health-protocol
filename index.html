@@ -49,6 +49,7 @@ body {
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
+  font-variant-numeric: tabular-nums; /* digits keep their width as values change */
   line-height: 1.45;
   min-height: 100vh;
   padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
@@ -99,7 +100,7 @@ input, select { font-family: inherit; }
 .datenav .date-sub { font-size: 0.72rem; color: var(--text-muted); font-family: var(--mono); }
 .daytype-toggle { display: inline-flex; background: var(--bg-input); border: 1px solid var(--border-soft);
   border-radius: 999px; padding: 2px; margin-top: 4px; }
-.daytype-toggle button { font-size: 0.68rem; padding: 3px 10px; border-radius: 999px; color: var(--text-muted); font-weight: 600; }
+.daytype-toggle button { font-size: 0.7rem; padding: 3px 10px; border-radius: 999px; color: var(--text-muted); font-weight: 600; }
 .daytype-toggle button.on { background: var(--accent); color: #fff; }
 
 /* ============ VIEWS / TABS ============ */
@@ -127,6 +128,24 @@ input, select { font-family: inherit; }
   color: var(--text-muted); margin-bottom: 0.85rem; display: flex; align-items: center; justify-content: space-between; }
 .card-title .tac { font-size: 0.7rem; color: var(--accent); text-transform: none; letter-spacing: 0; font-weight: 600; cursor: pointer; }
 
+/* Section color spines — each section keeps its own hue for at-a-glance wayfinding */
+.card.sp-cal     { border-left: 3px solid var(--cal); }
+.card.sp-protein { border-left: 3px solid var(--protein); }
+.card.sp-rs      { border-left: 3px solid var(--rs); }
+.card.sp-fat     { border-left: 3px solid var(--fat); }
+.card.sp-fiber   { border-left: 3px solid var(--fiber); }
+.card.sp-warn    { border-left: 3px solid var(--warning); }
+.card.sp-danger  { border-left: 3px solid var(--danger); }
+
+/* One-shot pulse when a ring crosses 100% of its target */
+@keyframes ringpop {
+  0%   { transform: scale(1);    filter: none; }
+  40%  { transform: scale(1.15); filter: drop-shadow(0 0 10px rgba(34,197,94,0.7)); }
+  100% { transform: scale(1);    filter: none; }
+}
+.ring.pop .ring-svg { animation: ringpop 0.6s cubic-bezier(.2,1.2,.4,1); }
+@media (prefers-reduced-motion: reduce){ .ring.pop .ring-svg { animation: none; } }
+
 /* ============ HERO RINGS ============ */
 .rings { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
 @media (max-width: 560px){ .rings { grid-template-columns: repeat(3, 1fr); gap: 0.6rem 0.4rem; } }
@@ -137,8 +156,8 @@ input, select { font-family: inherit; }
 .ring-center { font-family: var(--mono); }
 .ring-val { font-size: 0.95rem; font-weight: 700; }
 .ring-unit { font-size: 0.65rem; fill: var(--text-dim); }
-.ring-label { font-size: 0.66rem; font-weight: 600; color: var(--text-muted); text-align: center; }
-.ring-target { font-size: 0.6rem; font-family: var(--mono); color: var(--text-dim); }
+.ring-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-align: center; }
+.ring-target { font-size: 0.68rem; font-family: var(--mono); color: var(--text-dim); }
 
 .satbar-wrap { margin-top: 0.9rem; }
 .satbar-head { display: flex; justify-content: space-between; font-size: 0.72rem; margin-bottom: 4px; }
@@ -149,9 +168,9 @@ input, select { font-family: inherit; }
 
 .secondary-strip { display: flex; gap: 0.75rem; margin-top: 0.85rem; }
 .mini-metric { flex: 1; background: var(--bg-input); border-radius: var(--radius-sm); padding: 0.55rem 0.7rem; }
-.mini-metric .mm-lab { font-size: 0.66rem; color: var(--text-muted); font-weight: 600; }
+.mini-metric .mm-lab { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; }
 .mini-metric .mm-val { font-family: var(--mono); font-size: 0.95rem; font-weight: 700; }
-.mini-metric .mm-tgt { font-size: 0.6rem; color: var(--text-dim); font-family: var(--mono); }
+.mini-metric .mm-tgt { font-size: 0.68rem; color: var(--text-dim); font-family: var(--mono); }
 
 /* ============ NEXT ACTION ============ */
 .next-action { background: linear-gradient(135deg, rgba(74,158,255,0.14), rgba(34,197,94,0.10));
@@ -182,7 +201,7 @@ input, select { font-family: inherit; }
 .entry .e-name { flex: 1; font-size: 0.85rem; }
 .entry .e-name .e-serv { color: var(--text-dim); font-size: 0.72rem; }
 .entry .e-flags { display: flex; gap: 3px; }
-.flag { font-size: 0.62rem; padding: 1px 5px; border-radius: 5px; font-weight: 700; }
+.flag { font-size: 0.66rem; padding: 1px 5px; border-radius: 5px; font-weight: 700; }
 .flag.reflux { background: var(--warning-bg); color: var(--warning); }
 .flag.statin { background: var(--danger-bg); color: var(--danger); }
 .flag.satfat { background: rgba(236,106,94,0.14); color: var(--fat); }
@@ -221,8 +240,8 @@ input, select { font-family: inherit; }
 .counters { display: flex; gap: 0.75rem; }
 .counter { flex: 1; background: var(--bg-input); border-radius: var(--radius-sm); padding: 0.7rem; text-align: center; }
 .counter .c-val { font-family: var(--mono); font-size: 1.3rem; font-weight: 700; }
-.counter .c-lab { font-size: 0.68rem; color: var(--text-muted); }
-.counter .c-tgt { font-size: 0.62rem; }
+.counter .c-lab { font-size: 0.7rem; color: var(--text-muted); }
+.counter .c-tgt { font-size: 0.68rem; }
 .counter.ok .c-val { color: var(--success); }
 .counter.over .c-val { color: var(--danger); }
 .counter.under .c-val { color: var(--warning); }
@@ -232,13 +251,13 @@ input, select { font-family: inherit; }
 .ramp-track { height: 14px; border-radius: 999px; background: var(--bg-input); position: relative; }
 .ramp-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--rs), var(--fiber)); transition: width 0.6s; }
 .ramp-marker { position: absolute; top: -4px; width: 3px; height: 22px; background: var(--text); border-radius: 2px; }
-.ramp-marker .ml { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 0.6rem;
+.ramp-marker .ml { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 0.66rem;
   font-family: var(--mono); color: var(--text-muted); white-space: nowrap; }
-.ramp-scale { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.66rem; color: var(--text-dim); margin-top: 0.5rem; }
+.ramp-scale { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); margin-top: 0.5rem; }
 .ramp-stats { display: flex; gap: 0.6rem; margin-top: 0.9rem; }
 .ramp-stat { flex: 1; background: var(--bg-input); border-radius: var(--radius-sm); padding: 0.6rem; text-align: center; }
 .ramp-stat .rv { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; color: var(--rs); }
-.ramp-stat .rl { font-size: 0.64rem; color: var(--text-muted); }
+.ramp-stat .rl { font-size: 0.7rem; color: var(--text-muted); }
 .coach-prompt { background: linear-gradient(135deg, rgba(240,160,32,0.16), rgba(34,197,94,0.12));
   border: 1px solid rgba(240,160,32,0.4); border-radius: var(--radius); padding: 0.9rem 1rem; margin-top: 0.9rem; }
 .coach-prompt .cp-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.2rem; }
@@ -260,7 +279,7 @@ input, select { font-family: inherit; }
 .stat-box { background: var(--bg-input); border-radius: var(--radius-sm); padding: 0.7rem; }
 .stat-box .sb-lab { font-size: 0.68rem; color: var(--text-muted); }
 .stat-box .sb-val { font-family: var(--mono); font-size: 1.3rem; font-weight: 700; }
-.stat-box .sb-sub { font-size: 0.66rem; color: var(--text-dim); }
+.stat-box .sb-sub { font-size: 0.7rem; color: var(--text-dim); }
 .bc-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.6rem; }
 .bc-inputs label { font-size: 0.7rem; color: var(--text-muted); display: block; margin-bottom: 3px; }
 .bc-inputs input { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -273,7 +292,7 @@ input, select { font-family: inherit; }
 .day-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .plan-meal { margin-bottom: 0.7rem; }
 .plan-meal .pm-head { font-weight: 700; font-size: 0.85rem; display: flex; justify-content: space-between; margin-bottom: 0.3rem; }
-.plan-meal .pm-head .pm-macros { font-family: var(--mono); font-size: 0.68rem; color: var(--text-muted); }
+.plan-meal .pm-head .pm-macros { font-family: var(--mono); font-size: 0.7rem; color: var(--text-muted); }
 .plan-meal .pm-items { font-size: 0.8rem; color: var(--text-muted); }
 
 /* ============ REFERENCE ============ */
@@ -313,7 +332,7 @@ input, select { font-family: inherit; }
 .food-item .fi-main { flex: 1; }
 .food-item .fi-name { font-size: 0.88rem; font-weight: 600; }
 .food-item .fi-serv { font-size: 0.72rem; color: var(--text-dim); }
-.food-item .fi-macros { font-family: var(--mono); font-size: 0.68rem; color: var(--text-muted); }
+.food-item .fi-macros { font-family: var(--mono); font-size: 0.7rem; color: var(--text-muted); }
 .food-item .fi-macros .rsv { color: var(--rs); font-weight: 700; }
 .food-item .fi-add { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: #fff;
   font-size: 1.3rem; font-weight: 700; display: grid; place-items: center; flex-shrink: 0; }
@@ -367,7 +386,7 @@ input, select { font-family: inherit; }
 .gc-lvl { font-family: var(--mono); font-weight: 700; font-size: 0.8rem; color: #b794f6; white-space: nowrap; }
 .gc-xpbar { flex: 1; height: 8px; border-radius: 999px; background: var(--bg-input); overflow: hidden; }
 .gc-xpbar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--protein), var(--accent)); transition: width 0.5s; }
-.gc-xptxt { font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim); white-space: nowrap; }
+.gc-xptxt { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); white-space: nowrap; }
 .gc-goal { display: flex; align-items: center; gap: 0.7rem; cursor: pointer; }
 .gc-goal.empty { opacity: 0.9; }
 .gc-g-icon { font-size: 1.5rem; }
@@ -402,7 +421,7 @@ input, select { font-family: inherit; }
 .ach-main { flex: 1; }
 .ach-n { font-weight: 700; font-size: 0.85rem; }
 .ach-d { font-size: 0.72rem; color: var(--text-muted); }
-.ach-date { font-family: var(--mono); font-size: 0.64rem; color: var(--success); }
+.ach-date { font-family: var(--mono); font-size: 0.68rem; color: var(--success); }
 .ach-lock { font-size: 0.9rem; }
 
 .goal-types { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.4rem; margin-bottom: 0.9rem; }
@@ -414,7 +433,7 @@ input, select { font-family: inherit; }
 .gf input:focus { outline: none; border-color: var(--accent); }
 .gf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .tabbar button .ti { font-size: 1.2rem; }
-.tabbar button { font-size: 0.66rem; }
+.tabbar button { font-size: 0.7rem; }
 
 /* ===== GYM ===== */
 .wo-ex { background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; cursor: pointer; }
@@ -438,12 +457,12 @@ input, select { font-family: inherit; }
 .set-del { width: 30px; height: 30px; border-radius: 7px; background: var(--bg-card-2); border: 1px solid var(--border-soft); color: var(--text-dim); flex-shrink: 0; }
 .quick-sets { display: flex; align-items: flex-end; gap: 0.4rem; margin-bottom: 0.3rem; }
 .qs-field { flex: 1; min-width: 0; }
-.qs-field label { display: block; font-size: 0.66rem; color: var(--text-muted); margin-bottom: 3px; text-align: center; }
+.qs-field label { display: block; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 3px; text-align: center; }
 .qs-field input { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.3rem; color: var(--text); font-family: var(--mono); font-size: 1.15rem; text-align: center; }
 .qs-field input:focus { outline: none; border-color: var(--accent); }
 .qs-op { color: var(--text-dim); font-family: var(--mono); padding-bottom: 0.65rem; }
 .mode-link { background: none; border: none; color: var(--accent); font-size: 0.76rem; padding: 0.4rem 0; cursor: pointer; display: block; }
-.fi-usual { color: var(--accent); font-size: 0.68rem; font-family: var(--mono); }
+.fi-usual { color: var(--accent); font-size: 0.7rem; font-family: var(--mono); }
 .mm-item { position: relative; background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 0.75rem 0.85rem; margin-bottom: 0.5rem; cursor: pointer; }
 .mm-item:active { transform: scale(0.99); }
 .mm-item.mm-save { border-style: dashed; }
@@ -470,7 +489,7 @@ input, select { font-family: inherit; }
 .sum-pr { font-family: var(--mono); font-size: 0.72rem; color: var(--warning); font-weight: 700; flex-shrink: 0; }
 .sum-last { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--mono); font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
 .sum-date { color: var(--text-dim); flex-shrink: 0; }
-.sum-grp { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+.sum-grp { font-size: 0.64rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -503,7 +522,7 @@ input, select { font-family: inherit; }
     <div id="goalCard"></div>
     <div id="nextAction"></div>
 
-    <div class="card">
+    <div class="card sp-cal">
       <div class="card-title">Today's Macros <span class="tac" id="dayTypeLabel"></span></div>
       <div class="rings" id="rings"></div>
       <div class="satbar-wrap">
@@ -516,12 +535,12 @@ input, select { font-family: inherit; }
     <div class="card-title" style="padding:0 0.2rem">Meals <span class="tac" onclick="copyPrevDay()">⟲ Copy yesterday</span></div>
     <div id="slots"></div>
 
-    <div class="card">
+    <div class="card sp-fiber">
       <div class="card-title">Daily Protocol</div>
       <div id="checklist"></div>
     </div>
 
-    <div class="card">
+    <div class="card sp-warn">
       <div class="card-title">This Week</div>
       <div class="counters" id="weekCounters"></div>
     </div>
@@ -529,7 +548,7 @@ input, select { font-family: inherit; }
 
   <!-- ============ TRENDS ============ -->
   <section class="view" id="view-trends">
-    <div class="card">
+    <div class="card sp-rs">
       <div class="card-title">RS Ramp-Up <span class="tac" id="rsAvgTac"></span></div>
       <div class="ramp-meter">
         <div class="ramp-track">
@@ -542,7 +561,7 @@ input, select { font-family: inherit; }
       <div id="coachPrompt"></div>
     </div>
 
-    <div class="card">
+    <div class="card sp-cal">
       <div class="card-title">Weight <span class="tac" id="weightAvgTac"></span></div>
       <div class="weight-entry">
         <input type="number" inputmode="decimal" id="weightInput" placeholder="Today's weight (lbs)" step="0.1" />
@@ -551,7 +570,7 @@ input, select { font-family: inherit; }
       <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
     </div>
 
-    <div class="card">
+    <div class="card sp-fat">
       <div class="card-title">Body Comp <span class="tac" id="bcLastTac" style="cursor:default"></span></div>
       <div class="bc-inputs">
         <div><label>Waist (in, at navel)</label><input type="number" inputmode="decimal" id="bcWaist" step="0.1" /></div>
@@ -580,7 +599,7 @@ input, select { font-family: inherit; }
       <button data-pm="rest">😴 Rest day</button>
     </div>
     <div class="day-pills" id="dayPills"></div>
-    <div class="card">
+    <div class="card sp-fat">
       <div class="card-title">7-Day Plan <span class="tac" id="planLoadBtn">⬇ Load into today</span></div>
       <div id="planContent"></div>
     </div>
@@ -590,18 +609,18 @@ input, select { font-family: inherit; }
   <section class="view" id="view-shop">
     <button class="btn-primary" id="shopLinkBtn" style="width:100%;margin-bottom:0.5rem">🔗 Share editable link (live, for your wife)</button>
     <button class="btn-tmpl" id="shopShareBtn" style="width:100%;margin-bottom:1rem">📤 Share as text / copy</button>
-    <div class="card">
+    <div class="card sp-fiber">
       <div class="card-title">Weekly Staples <span class="tac" id="shopReset">Reset checks</span></div>
       <p class="muted" style="font-size:0.76rem;margin:-0.5rem 0 0.5rem">Check off as you shop. Every item here pulls a protocol lever.</p>
       <div id="shopStaples"></div>
     </div>
-    <div class="card">
+    <div class="card sp-cal">
       <div class="card-title">Build From Meal Plan</div>
       <p class="muted" style="font-size:0.76rem;margin:-0.5rem 0 0.5rem">Pick the days you'll cook — I'll list every ingredient.</p>
       <div class="day-pills" id="shopDayPills"></div>
       <div id="shopGenerated"></div>
     </div>
-    <div class="card">
+    <div class="card sp-danger">
       <div class="card-title" style="color:var(--danger)">Keep Out Of The House</div>
       <div id="shopAvoid"></div>
     </div>
@@ -1850,7 +1869,7 @@ function ringSVG(value, target, color, label, unit, status){
   const r=42, cx=50, cy=50, circ=2*Math.PI*r;
   const pct = target>0 ? Math.min(value/target,1) : 0;
   const off = circ*(1-pct);
-  return `<div class="ring">
+  return `<div class="ring" data-ring="${label}">
     <svg class="ring-svg" viewBox="0 0 100 100">
       <circle class="ring-track" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="9"/>
       <circle class="ring-prog" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="9"
@@ -1870,6 +1889,7 @@ function calColor(value,target){ const pct=target>0? value/target:0;
 function fatColor(value,target){ const pct=target>0? value/target:0;
   if(pct>1.2) return 'var(--danger)'; if(pct>1.0) return 'var(--warning)'; return 'var(--success)'; }
 
+let ringCelebrate = { date: null, done: {} };
 function renderRings(){
   const t = dayTotals(viewDate);
   const log = peekLog(viewDate);
@@ -1885,6 +1905,20 @@ function renderRings(){
     ringSVG(t.f, mt.fat, 'var(--fat)', 'Fat', 'g', fatColor(t.f,mt.fat)),
     ringSVG(t.fib, fibT, 'var(--fiber)', 'Fiber', 'g', moreBetterColor(t.fib,fibT)),
   ].join('');
+  /* Pulse a ring the moment it crosses 100% — only for the more-is-better trio,
+     and only on a genuine transition (not when merely browsing to a finished day). */
+  const doneNow = { Protein: t.p>=mt.protein, RS: t.rs>=rsT, Fiber: t.fib>=fibT };
+  if(ringCelebrate.date===viewDate){
+    Object.keys(doneNow).forEach(k=>{
+      if(doneNow[k] && !ringCelebrate.done[k]){
+        const el=document.querySelector(`#rings .ring[data-ring="${k}"]`);
+        if(el) el.classList.add('pop');
+      }
+    });
+    ringCelebrate.done = doneNow;
+  } else {
+    ringCelebrate = { date: viewDate, done: doneNow };
+  }
   const satPct = Math.min(t.sat/satCap,1)*100;
   const satColor = t.sat>satCap? 'var(--danger)' : (t.sat>satCap*0.7? 'var(--warning)':'var(--success)');
   document.getElementById('satFill').style.width = satPct+'%';
@@ -2611,6 +2645,16 @@ function renderAll(){
 
 /* ---------- GAME UI: goal card, level view, goal modal ---------- */
 const GOAL_ICON={weight:'⚖️', rs_ramp:'🌀', streak:'🔥', custom:'🎯', lift:'🏋️'};
+/* Streak flame levels up with the streak: gray ember at 0, grows to 30 days,
+   earns a glow at 30+. The emoji stays — it just gets stronger. */
+function flameHTML(streak){
+  const t=Math.min(1, streak/30);
+  const scale=(1+0.45*t).toFixed(2);
+  const filt = streak<1
+    ? 'grayscale(0.85) opacity(0.5)'
+    : `saturate(${(0.9+0.8*t).toFixed(2)})${streak>=30?' drop-shadow(0 0 6px rgba(245,158,11,0.65))':''}`;
+  return `<span style="display:inline-block;transform:scale(${scale});transform-origin:center bottom;filter:${filt}">🔥</span>`;
+}
 function fmtNum(n){ return n==null?'—':(Math.round(n*10)/10).toString(); }
 function goalTitle(goal){
   if(goal.label) return goal.label;
@@ -2645,7 +2689,7 @@ function renderGoalCard(){
     </div>`;
   }
   const hs=habitState();
-  html+=`<div class="gc-habit"><span class="gc-h-flame">🔥</span> <b>${hs.streak}</b>-day streak${hs.next?` · reward at ${hs.next}`:''}${hs.best>hs.streak?` · best ${hs.best}`:''}</div>`;
+  html+=`<div class="gc-habit">${flameHTML(hs.streak)} <b>${hs.streak}</b>-day streak${hs.next?` · reward at ${hs.next}`:''}${hs.best>hs.streak?` · best ${hs.best}`:''}</div>`;
   html+=`</div>`;
   el.innerHTML=html;
 }
@@ -2670,17 +2714,17 @@ function renderLevel(){
       <div class="lh-xpbar"><span style="width:${(lv.pct*100).toFixed(0)}%"></span></div>
       <div class="lh-xptxt">${lv.into} / ${lv.need} XP → LV ${lv.level+1} · ${xp} total XP</div>
     </div>
-    <div class="card"><div class="card-title">Stats</div>
+    <div class="card sp-protein"><div class="card-title">Stats</div>
       ${statLine('💪 Strength', stats.strength||0, stats.strength==null)}
       ${statLine('🏃 Endurance', stats.endurance||0, stats.endurance==null)}
       ${statLine('🎯 Discipline',stats.discipline,false)}
       ${statLine('📆 Consistency',stats.consistency,false)}
     </div>
-    <div class="card"><div class="card-title">Streak</div>
-      <div class="streak-big">🔥 ${hs.streak} <span>day${hs.streak===1?'':'s'}</span></div>
+    <div class="card sp-warn"><div class="card-title">Streak</div>
+      <div class="streak-big">${flameHTML(hs.streak)} ${hs.streak} <span>day${hs.streak===1?'':'s'}</span></div>
       <div class="muted" style="font-size:0.8rem">Best: ${hs.best} · ${hs.next?`next reward at ${hs.next} days`:'all milestones hit'}</div>
     </div>
-    <div class="card"><div class="card-title">Achievements <span class="tac" style="cursor:default">${Object.keys(g.achievements).length}/${ACHIEVEMENTS.length}</span></div>${ach}</div>`;
+    <div class="card sp-rs"><div class="card-title">Achievements <span class="tac" style="cursor:default">${Object.keys(g.achievements).length}/${ACHIEVEMENTS.length}</span></div>${ach}</div>`;
 }
 
 /* goal modal */
@@ -2779,17 +2823,17 @@ function renderGym(){
       ${g?`<div class="sum-grp">${g}</div>`:''}</div>`;
   }).join('') : `<p class="muted" style="font-size:0.8rem">Log a workout — each exercise's last sets &amp; PR show up here.</p>`;
   el.innerHTML=`
-    <div class="card">
+    <div class="card sp-cal">
       <div class="card-title">Workout · ${prettyDate(date)} <span class="tac" style="cursor:default">${dt==='rest'?'😴 Rest':'🏋 Training'}</span></div>
       ${progress}
       <div id="woList">${exRows}</div>
       <button class="btn-add" style="width:100%;margin-top:0.6rem" onclick="openExLib()">+ Add exercise</button>
     </div>
-    <div class="card">
+    <div class="card sp-protein">
       <div class="card-title">Start a Routine</div>
       <div class="routine-grid">${routineBtns}</div>
     </div>
-    <div class="card"><div class="card-title">Exercise Summary <span class="tac" style="cursor:default">last set · PR</span></div>${recRows}</div>`;
+    <div class="card sp-warn"><div class="card-title">Exercise Summary <span class="tac" style="cursor:default">last set · PR</span></div>${recRows}</div>`;
 }
 function startRoutine(id){
   const r=ROUTINES.find(x=>x.id===id); if(!r) return;
