@@ -165,13 +165,14 @@ input, select { font-family: inherit; }
 .rings-primary { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; width: 100%; }
 .rings-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; width: 100%; }
 .ring { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
-.ring-svg { width: 100%; max-width: 92px; aspect-ratio: 1; }
+/* Every ring carries a soft halo in its own colour (--rc, set per ring). The
+   shadow wraps the whole circle, so the unfilled track glows too. Brighter
+   once the ring is at/over target. */
+.ring-svg { width: 100%; max-width: 92px; aspect-ratio: 1; filter: drop-shadow(0 0 3px var(--rc, transparent)); }
 .rings-primary .ring-svg { max-width: 132px; }
 .rings-primary .ring-label { font-size: 0.82rem; }
 .rings-primary .ring-target { font-size: 0.74rem; }
-/* Glow = achieved. A ring at/over target keeps a soft green halo (the same
-   semantic as the one-shot pop) — glow means "good", consistently. */
-.ring-done .ring-svg { filter: drop-shadow(0 0 5px rgba(34,197,94,0.5)); }
+.ring-done .ring-svg { filter: drop-shadow(0 0 8px var(--rc, var(--success))); }
 .ring-track { stroke: var(--bg-card-2); }
 .ring-prog { transition: stroke-dashoffset 0.5s ease, stroke 0.3s; stroke-linecap: round; }
 .ring-center { font-family: var(--mono); }
@@ -1919,7 +1920,7 @@ function ringSVG(value, target, color, label, unit, status, done){
   const r=42, cx=50, cy=50, circ=2*Math.PI*r;
   const pct = target>0 ? Math.min(value/target,1) : 0;
   const off = circ*(1-pct);
-  return `<div class="ring${done?' ring-done':''}" data-ring="${label}">
+  return `<div class="ring${done?' ring-done':''}" data-ring="${label}" style="--rc:${color}">
     <svg class="ring-svg" viewBox="0 0 100 100">
       <circle class="ring-track" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="9"/>
       <circle class="ring-prog" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="9"
