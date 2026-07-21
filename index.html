@@ -783,6 +783,7 @@ const MACRO_TARGETS = {
 
 const SLOTS = [
   { id:'breakfast', name:'Breakfast', icon:'🥣', rs:8,  protein:50 },
+  { id:'midMorning',name:'Mid-Morning',icon:'🥤', rs:0, protein:0 },
   { id:'lunch',     name:'Lunch',     icon:'🥗', rs:8,  protein:48 },
   { id:'preGym',    name:'Pre-Gym',   icon:'⚡', rs:10, protein:29, restName:'Afternoon Snack', restIcon:'🍎' },
   { id:'dinner',    name:'Dinner',    icon:'🍽', rs:14, protein:58 },
@@ -1164,6 +1165,7 @@ const PLAN_DAY_ORDER = ['Monday','Tuesday','Wednesday','Thursday','Friday','Satu
 /* Per-meal quick templates */
 const MEAL_TEMPLATES = {
   breakfast: [ { name:'Standard oats bowl', items:['oats_raw_h','whey','greek_yogurt','chia'] } ],
+  midMorning:[ { name:'Protein shake', items:['fairlife_choc'] }, { name:'Greek yogurt + berries', items:['greek_yogurt','blueberries'] } ],
   lunch:     [ { name:'Fish + beans + greens', items:['salmon_canned','cannellini_cold','mixed_greens','olive_oil'] } ],
   preGym:    [ { name:'Banana + whey', items:['green_banana','whey'] } ],
   dinner:    [ { name:'Protein + cold starch + veg', items:['chicken_breast','rice_cold_h','potato_cold_h','broccoli','olive_oil'] } ],
@@ -2043,7 +2045,7 @@ function setPlanMode(m){ planMode=m; renderPlan(); }
 function loadPlanIntoToday(){
   const plan = DAY_PLAN[planDay]; if(!plan) return;
   const log = getLog(currentDate);
-  ['breakfast','lunch','preGym','dinner','postGym','flex'].forEach(s=> log.meals[s]=[]);
+  ['breakfast','midMorning','lunch','preGym','dinner','postGym','flex'].forEach(s=> log.meals[s]=[]);
   Object.keys(plan).forEach(sid=>{ plan[sid].forEach(fid=> log.meals[sid].push({id:state._seq++, foodId:fid, servings:1})); });
   log.dayType = planMode;
   if(planMode==='training' && TRAIN_BOOST[planDay]){ TRAIN_BOOST[planDay].forEach(fid=> log.meals.flex.push({id:state._seq++, foodId:fid, servings:1})); }
