@@ -92,11 +92,11 @@ input, select { font-family: inherit; }
 
 /* ============ DATE NAV ============ */
 .datenav { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; }
-.datenav .nav-arrow { width: 38px; height: 38px; border-radius: 10px; background: var(--bg-card);
-  border: 1px solid var(--border-soft); display: grid; place-items: center; font-size: 1.1rem; }
+.datenav .nav-arrow { width: 44px; height: 44px; border-radius: 12px; background: var(--bg-card);
+  border: 1px solid var(--border-soft); display: grid; place-items: center; font-size: 1.35rem; }
 .datenav .nav-arrow:active { transform: scale(0.92); }
 .datenav .date-center { text-align: center; flex: 1; }
-.datenav .date-main { font-weight: 600; font-size: 1rem; }
+.datenav .date-main { font-weight: 700; font-size: 1.25rem; letter-spacing: -0.01em; }
 .datenav .date-sub { font-size: 0.72rem; color: var(--text-muted); font-family: var(--mono); }
 .daytype-toggle { display: inline-flex; background: var(--bg-input); border: 1px solid var(--border-soft);
   border-radius: 999px; padding: 2px; margin-top: 4px; }
@@ -107,6 +107,14 @@ input, select { font-family: inherit; }
 .view { display: none; animation: fade 0.2s ease; }
 .view.active { display: block; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+/* Cards stagger up when a view is switched in (one-shot .anim class) */
+@keyframes cardup { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.view.anim .card { animation: cardup 0.3s ease both; }
+.view.anim .card:nth-of-type(2) { animation-delay: 0.05s; }
+.view.anim .card:nth-of-type(3) { animation-delay: 0.10s; }
+.view.anim .card:nth-of-type(4) { animation-delay: 0.15s; }
+.view.anim .card:nth-of-type(n+5) { animation-delay: 0.20s; }
+@media (prefers-reduced-motion: reduce){ .view.anim .card { animation: none; } }
 
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
@@ -137,6 +145,10 @@ input, select { font-family: inherit; }
 .card.sp-warn    { border-left: 3px solid var(--warning); }
 .card.sp-danger  { border-left: 3px solid var(--danger); }
 
+/* Hero card — the day's anchor surface: raised a step, soft shadow, so the eye
+   lands here first instead of scanning a column of identical rectangles. */
+.card.hero { background: var(--bg-card-2); box-shadow: 0 8px 28px rgba(0,0,0,0.45); }
+
 /* One-shot pulse when a ring crosses 100% of its target */
 @keyframes ringpop {
   0%   { transform: scale(1);    filter: none; }
@@ -147,10 +159,19 @@ input, select { font-family: inherit; }
 @media (prefers-reduced-motion: reduce){ .ring.pop .ring-svg { animation: none; } }
 
 /* ============ HERO RINGS ============ */
-.rings { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
-@media (max-width: 560px){ .rings { grid-template-columns: repeat(3, 1fr); gap: 0.6rem 0.4rem; } }
+/* Calories + Protein are the primary metrics — two large rings anchor, the
+   remaining three support, encoding priority visually not by reading order. */
+.rings { display: flex; flex-direction: column; align-items: center; gap: 0.9rem; }
+.rings-primary { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; width: 100%; }
+.rings-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; width: 100%; }
 .ring { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
 .ring-svg { width: 100%; max-width: 92px; aspect-ratio: 1; }
+.rings-primary .ring-svg { max-width: 132px; }
+.rings-primary .ring-label { font-size: 0.82rem; }
+.rings-primary .ring-target { font-size: 0.74rem; }
+/* Glow = achieved. A ring at/over target keeps a soft green halo (the same
+   semantic as the one-shot pop) — glow means "good", consistently. */
+.ring-done .ring-svg { filter: drop-shadow(0 0 5px rgba(34,197,94,0.5)); }
 .ring-track { stroke: var(--bg-card-2); }
 .ring-prog { transition: stroke-dashoffset 0.5s ease, stroke 0.3s; stroke-linecap: round; }
 .ring-center { font-family: var(--mono); }
@@ -249,8 +270,12 @@ input, select { font-family: inherit; }
 /* ============ RS RAMP ============ */
 .ramp-meter { margin: 0.5rem 0 0.3rem; }
 .ramp-track { height: 14px; border-radius: 999px; background: var(--bg-input); position: relative; }
-.ramp-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--rs), var(--fiber)); transition: width 0.6s; }
-.ramp-marker { position: absolute; top: -4px; width: 3px; height: 22px; background: var(--text); border-radius: 2px; }
+.ramp-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--rs), var(--fiber)); transition: width 0.6s; position: relative; z-index: 1; }
+/* faint 5g graduation ticks (interval set per RS goal in renderRamp) */
+.ramp-track::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+  background: repeating-linear-gradient(90deg, transparent 0, transparent calc(var(--tickpct,12.5%) - 1px),
+    rgba(255,255,255,0.12) calc(var(--tickpct,12.5%) - 1px), rgba(255,255,255,0.12) var(--tickpct,12.5%)); }
+.ramp-marker { position: absolute; top: -4px; width: 3px; height: 22px; background: var(--text); border-radius: 2px; z-index: 3; }
 .ramp-marker .ml { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 0.66rem;
   font-family: var(--mono); color: var(--text-muted); white-space: nowrap; }
 .ramp-scale { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); margin-top: 0.5rem; }
@@ -385,7 +410,23 @@ input, select { font-family: inherit; }
 .gc-top { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.7rem; cursor: pointer; }
 .gc-lvl { font-family: var(--mono); font-weight: 700; font-size: 0.8rem; color: #b794f6; white-space: nowrap; }
 .gc-xpbar { flex: 1; height: 8px; border-radius: 999px; background: var(--bg-input); overflow: hidden; }
-.gc-xpbar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--protein), var(--accent)); transition: width 0.5s; }
+.gc-xpbar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--protein), var(--accent)); transition: width 0.5s; position: relative; overflow: hidden; }
+/* XP bars catch a slow travelling sheen so the level system feels alive */
+.gc-xpbar > span::after, .lh-xpbar > span::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+  animation: xpshine 2.8s ease-in-out infinite; }
+@keyframes xpshine { 0% { transform: translateX(-120%); } 55%, 100% { transform: translateX(320%); } }
+@media (prefers-reduced-motion: reduce){ .gc-xpbar > span::after, .lh-xpbar > span::after { animation: none; display: none; } }
+/* Level-up burst — a brief centered flare on level gain */
+.levelburst { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; pointer-events: none; }
+.levelburst .lb-core { font-family: var(--font); font-weight: 700; font-size: 2.3rem; letter-spacing: 0.04em;
+  background: linear-gradient(135deg, #fff, #b794f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 18px rgba(139,92,246,0.7)); animation: lbcore 1.5s cubic-bezier(.2,1,.3,1) forwards; }
+.levelburst .lb-ring { position: absolute; width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--protein);
+  animation: lbring 1.2s ease-out forwards; }
+@keyframes lbcore { 0% { transform: scale(0.4); opacity: 0; } 22% { transform: scale(1.12); opacity: 1; } 72% { opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+@keyframes lbring { 0% { transform: scale(0.3); opacity: 0.85; } 100% { transform: scale(4.2); opacity: 0; } }
 .gc-xptxt { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); white-space: nowrap; }
 .gc-goal { display: flex; align-items: center; gap: 0.7rem; cursor: pointer; }
 .gc-goal.empty { opacity: 0.9; }
@@ -522,7 +563,7 @@ input, select { font-family: inherit; }
     <div id="goalCard"></div>
     <div id="nextAction"></div>
 
-    <div class="card sp-cal">
+    <div class="card sp-cal hero">
       <div class="card-title">Today's Macros <span class="tac" id="dayTypeLabel"></span></div>
       <div class="rings" id="rings"></div>
       <div class="satbar-wrap">
@@ -1858,18 +1899,27 @@ function checkGameEvents(){
   if(pg && !pg.done){ const pr=goalProgress(pg); if(pr && pr.done){ pg.done=true; pg.doneAt=todayStr(); g.goalBonusXp+=250; toast('🏆 Goal complete! +250 XP'); changed=true; } }
   evaluateAchievements().forEach(a=>{ toast(`${a.icon} Achievement: ${a.name}!`); changed=true; });
   const lvl=levelFromXp(totalXp()).level;
-  if(lvl!==g.seenLevel){ if(lvl>g.seenLevel) toast(`⭐ LEVEL UP → ${lvl}!`); g.seenLevel=lvl; changed=true; }
+  if(lvl!==g.seenLevel){ if(lvl>g.seenLevel){ toast(`⭐ LEVEL UP → ${lvl}!`); levelUpBurst(lvl); } g.seenLevel=lvl; changed=true; }
   if(changed) saveState();
+}
+/* Brief centered flare on level gain (skipped under reduced-motion). */
+function levelUpBurst(level){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const el=document.createElement('div');
+  el.className='levelburst';
+  el.innerHTML=`<div class="lb-ring"></div><div class="lb-core">LEVEL ${level}</div>`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 1500);
 }
 
 /* ======================================================================
    RENDERING
    ====================================================================== */
-function ringSVG(value, target, color, label, unit, status){
+function ringSVG(value, target, color, label, unit, status, done){
   const r=42, cx=50, cy=50, circ=2*Math.PI*r;
   const pct = target>0 ? Math.min(value/target,1) : 0;
   const off = circ*(1-pct);
-  return `<div class="ring" data-ring="${label}">
+  return `<div class="ring${done?' ring-done':''}" data-ring="${label}">
     <svg class="ring-svg" viewBox="0 0 100 100">
       <circle class="ring-track" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="9"/>
       <circle class="ring-prog" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="9"
@@ -1898,13 +1948,18 @@ function renderRings(){
   const rsT = tg.rs!=null?tg.rs:state.settings.rsTarget;
   const fibT = tg.fiber!=null?tg.fiber:state.settings.fiberTarget;
   const satCap = tg.satCap!=null?tg.satCap:state.settings.satCap;
-  document.getElementById('rings').innerHTML = [
-    ringSVG(t.cal, mt.cal, 'var(--cal)', 'Calories', '', calColor(t.cal,mt.cal)),
-    ringSVG(t.p, mt.protein, 'var(--protein)', 'Protein', 'g', moreBetterColor(t.p,mt.protein)),
-    ringSVG(t.rs, rsT, 'var(--rs)', 'RS', 'g', moreBetterColor(t.rs,rsT)),
-    ringSVG(t.f, mt.fat, 'var(--fat)', 'Fat', 'g', fatColor(t.f,mt.fat)),
-    ringSVG(t.fib, fibT, 'var(--fiber)', 'Fiber', 'g', moreBetterColor(t.fib,fibT)),
+  const calDone = calColor(t.cal,mt.cal)==='var(--success)';
+  const fatDone = fatColor(t.f,mt.fat)==='var(--success)';
+  const primary = [
+    ringSVG(t.cal, mt.cal, 'var(--cal)', 'Calories', '', calColor(t.cal,mt.cal), calDone),
+    ringSVG(t.p, mt.protein, 'var(--protein)', 'Protein', 'g', moreBetterColor(t.p,mt.protein), t.p>=mt.protein),
   ].join('');
+  const minis = [
+    ringSVG(t.rs, rsT, 'var(--rs)', 'RS', 'g', moreBetterColor(t.rs,rsT), t.rs>=rsT),
+    ringSVG(t.f, mt.fat, 'var(--fat)', 'Fat', 'g', fatColor(t.f,mt.fat), fatDone),
+    ringSVG(t.fib, fibT, 'var(--fiber)', 'Fiber', 'g', moreBetterColor(t.fib,fibT), t.fib>=fibT),
+  ].join('');
+  document.getElementById('rings').innerHTML = `<div class="rings-primary">${primary}</div><div class="rings-mini">${minis}</div>`;
   /* Pulse a ring the moment it crosses 100% — only for the more-is-better trio,
      and only on a genuine transition (not when merely browsing to a finished day). */
   const doneNow = { Protein: t.p>=mt.protein, RS: t.rs>=rsT, Fiber: t.fib>=fibT };
@@ -1980,7 +2035,7 @@ function renderSlots(){
         </div>
         <button class="e-del" onclick="onDelete('${slot.id}',${e.id})">🗑</button>
       </div>`;
-    }).join('') : `<div class="slot-empty">No items yet</div>`;
+    }).join('') : `<div class="slot-empty">⚔ Awaiting your first entry</div>`;
     const st = slotTotals(viewDate, slot.id);
     const tmplBtn = `<button class="btn-tmpl" onclick="openMealMenu('${slot.id}')">⚡ Meals</button>`;
     const tgt = (slot.rs||slot.protein) ? `<div class="slot-stats">
@@ -2060,6 +2115,8 @@ function renderRamp(){
   const goal = state.settings.rsGoal;
   document.getElementById('rsAvgTac').textContent = `7-day avg ${roll.toFixed(1)}g`;
   document.getElementById('rampFill').style.width = Math.min(roll/goal,1)*100+'%';
+  const track=document.querySelector('.ramp-track');
+  if(track) track.style.setProperty('--tickpct', (5/goal*100)+'%');  // 5g graduation marks
   const tgtPct = Math.min(target/goal,1)*100;
   document.getElementById('rampTargetMarker').style.left = `calc(${tgtPct}% - 1.5px)`;
   document.getElementById('rampTargetLabel').textContent = `target ${target}g`;
@@ -2127,9 +2184,22 @@ function renderWeightChart(){
     for(let k=i;k>=0 && dnums[k]>=lo;k--){ s+=weights[k]; n++; } return s/n; });
   ctx.strokeStyle='#22c55e'; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.beginPath();
   avgPts.forEach((v,i)=>{ const x=xS(i),y=yS(v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); ctx.setLineDash([]);
+  // Gradient fill under the weight line (blue fading to nothing toward the baseline)
+  const grad=ctx.createLinearGradient(0,pad.t,0,h-pad.b);
+  grad.addColorStop(0,'rgba(74,158,255,0.28)'); grad.addColorStop(1,'rgba(74,158,255,0)');
+  ctx.beginPath();
+  weights.forEach((v,i)=>{ const x=xS(i),y=yS(v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+  ctx.lineTo(xS(weights.length-1), h-pad.b); ctx.lineTo(xS(0), h-pad.b); ctx.closePath();
+  ctx.fillStyle=grad; ctx.fill();
   ctx.strokeStyle='#4a9eff'; ctx.lineWidth=2; ctx.beginPath();
   weights.forEach((v,i)=>{ const x=xS(i),y=yS(v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
-  ctx.fillStyle='#4a9eff'; weights.forEach((v,i)=>{ ctx.beginPath(); ctx.arc(xS(i),yS(v),3,0,Math.PI*2); ctx.fill(); });
+  // Endpoint dots glow; interior points stay flat
+  ctx.fillStyle='#4a9eff';
+  weights.forEach((v,i)=>{ const last=i===weights.length-1;
+    ctx.save();
+    if(i===0||last){ ctx.shadowColor='#4a9eff'; ctx.shadowBlur=10; }
+    ctx.beginPath(); ctx.arc(xS(i),yS(v), last?4:3, 0, Math.PI*2); ctx.fill();
+    ctx.restore(); });
   ctx.fillStyle='#5a5a68'; ctx.textAlign='center';
   ctx.fillText(dates[0].slice(5), xS(0), h-6);
   ctx.fillText(dates[dates.length-1].slice(5), xS(dates.length-1), h-6);
@@ -2617,6 +2687,9 @@ function switchView(v){
   if(v==='plan') renderPlan();
   if(v==='shop') renderShop();
   if(v==='ref') renderRef();
+  // one-shot staggered card entrance (re-trigger by clearing + forcing reflow)
+  const vw=document.getElementById('view-'+v);
+  vw.classList.remove('anim'); void vw.offsetWidth; vw.classList.add('anim');
 }
 /* Re-render whichever view is on screen (after a sync apply or day rollover). */
 function refreshActiveView(){
@@ -2810,7 +2883,7 @@ function renderGym(){
           <button class="e-del" onclick="event.stopPropagation();deleteExercise(${ex.id})">🗑</button></div>
         <div class="wo-ex-detail">${detail}</div>
       </div></div>`;
-  }).join('') : `<p class="muted" style="font-size:0.85rem;padding:0.3rem 0">No workout yet — start a routine below, or add an exercise.</p>`;
+  }).join('') : `<p class="muted" style="font-size:0.85rem;padding:0.3rem 0">🗡 No quest logged yet — pick a routine below to begin.</p>`;
   const routineBtns = ROUTINES.map(r=>`<button class="routine-btn" onclick="startRoutine('${r.id}')">${r.icon} ${r.name}</button>`).join('');
   const names=exerciseNames().filter(n=>exerciseSessions(n).length>0);
   names.sort((a,b)=> exerciseSessions(b).slice(-1)[0].date.localeCompare(exerciseSessions(a).slice(-1)[0].date));
