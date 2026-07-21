@@ -119,6 +119,9 @@ input, select { font-family: inherit; }
 .tabbar button .ti { font-size: 1.25rem; line-height: 1; }
 .tabbar button.active { color: var(--accent); }
 .tabbar button.active .ti { filter: drop-shadow(0 0 8px var(--accent)); }
+/* generated image icons: dimmed when inactive, full glow when active */
+.tabbar button .ti-img { width: 26px; height: 26px; border-radius: 7px; opacity: 0.5; filter: saturate(0.6); transition: 0.15s; }
+.tabbar button.active .ti-img { opacity: 1; filter: saturate(1) drop-shadow(0 0 8px rgba(74,158,255,0.45)); }
 
 /* ============ CARDS ============ */
 .card { background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--radius);
@@ -617,13 +620,13 @@ input, select { font-family: inherit; }
 
 <!-- TABBAR -->
 <nav class="tabbar" id="tabbar">
-  <button data-view="today" class="active"><span class="ti">📋</span>Today</button>
-  <button data-view="level"><span class="ti">⭐</span>Level</button>
-  <button data-view="gym"><span class="ti">💪</span>Gym</button>
-  <button data-view="trends"><span class="ti">📈</span>Trends</button>
-  <button data-view="plan"><span class="ti">🍽</span>Plan</button>
-  <button data-view="shop"><span class="ti">🛒</span>Shop</button>
-  <button data-view="ref"><span class="ti">📖</span>Ref</button>
+  <button data-view="today" class="active"><img class="ti-img" src="icons/tab-today.png" alt="">Today</button>
+  <button data-view="level"><img class="ti-img" src="icons/tab-level.png" alt="">Level</button>
+  <button data-view="gym"><img class="ti-img" src="icons/tab-gym.png" alt="">Gym</button>
+  <button data-view="trends"><img class="ti-img" src="icons/tab-trends.png" alt="">Trends</button>
+  <button data-view="plan"><img class="ti-img" src="icons/tab-plan.png" alt="">Plan</button>
+  <button data-view="shop"><img class="ti-img" src="icons/tab-shop.png" alt="">Shop</button>
+  <button data-view="ref"><img class="ti-img" src="icons/tab-ref.png" alt="">Ref</button>
 </nav>
 
 <!-- FOOD PICKER MODAL -->
