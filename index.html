@@ -1464,7 +1464,7 @@ const ROUTINES = [
 /* ---------- STATE ---------- */
 const DEFAULT_STATE = {
   settings: { rsTarget:20, rsGoal:40, rsBaseline:18, fiberTarget:35, satCap:15, height:72, leanGoal:null, rampLevelStart:null,
-              sound:true, music:false, vol:0.6 },
+              sound:true, music:true, vol:0.6 },
   dailyLogs: {},      // date -> { dayType, meals:{slot:[{id,foodId,servings}]}, weight, greenTea, coolingPrep }
   bodyComp: {},       // date -> { waist, neck }
   coachDismissed: {}, // target -> dateDismissed
@@ -2123,14 +2123,18 @@ function updateSoundBtn(){
   const b=document.getElementById('btnSound'); if(!b) return;
   const on=!!state.settings.sound;
   b.textContent = on ? '🔊' : '🔇';
-  b.title = on ? 'Sound on — tap to mute' : 'Muted — tap for sound';
+  b.title = on ? 'Audio on — tap to mute everything' : 'Muted — tap for sound & music';
   b.style.color = on ? 'var(--accent)' : 'var(--text-dim)';
 }
+/* Master audio switch: one tap governs BOTH effects and music together.
+   (Settings still has the individual toggles for anyone who wants SFX-only.) */
 function toggleSound(){
-  state.settings.sound=!state.settings.sound;
+  const on=!state.settings.sound;
+  state.settings.sound=on;
+  state.settings.music=on;
   saveState(); updateSoundBtn(); Snd.apply();
-  if(state.settings.sound) Snd.play('confirm');
-  toast(state.settings.sound?'Sound on 🔊':'Muted 🔇');
+  if(on) Snd.play('confirm');
+  toast(on?'Sound & music on 🔊':'Muted 🔇');
 }
 /* Error feedback: buzz + message, so a rejected action is felt as well as read. */
 function toastErr(msg){ Snd.play('error'); toast(msg); }
