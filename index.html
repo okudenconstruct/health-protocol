@@ -2070,7 +2070,8 @@ const Snd = {
   unlock(){
     Snd.init();
     if(Snd.ctx && Snd.ctx.state==='suspended') Snd.ctx.resume();
-    if(state.settings.sound && state.settings.music) Snd.musicStart();
+    if(state.settings.sound && state.settings.music) return Snd.musicStart();
+    return Promise.resolve(false);
   },
   MUSIC_MIX: 0.1,   // background song sits at ~10% of SFX level (per Aaron)
   setVolume(v){ if(this.master) this.master.gain.value=v; if(this.musicEl) this.musicEl.volume=v*this.MUSIC_MIX; },
@@ -2103,15 +2104,17 @@ const Snd = {
     if(this.playBuffer(name)) return;                          // real sample…
     (SFX[name]||SFX.tap).forEach(v=>this.tone(v));             // …else synth fallback
   },
+  /* Resolves true only when playback actually began — the gesture kick uses this
+     to know whether to keep retrying. Never rejects (safe for fire-and-forget callers). */
   musicStart(){
-    if(!(state.settings.sound && state.settings.music) || this.musicMissing) return;
+    if(!(state.settings.sound && state.settings.music) || this.musicMissing) return Promise.resolve(false);
     if(!this.musicEl){
       this.musicEl=new Audio(this.MUSIC_SRC);
       this.musicEl.loop=true;
       this.musicEl.volume=(state.settings.vol!=null?state.settings.vol:0.6)*this.MUSIC_MIX;
       this.musicEl.addEventListener('error', ()=>{ this.musicMissing=true; });
     }
-    this.musicEl.play().catch(()=>{});
+    return this.musicEl.play().then(()=>true).catch(()=>false);
   },
   musicStop(){ if(this.musicEl) this.musicEl.pause(); },
   apply(){   // re-sync playback with the current settings
@@ -3717,8 +3720,15 @@ const SND_RULES = [
   ['.mm-item, .routine-btn, .btn-add, .btn-tmpl, .nav-arrow',                       'confirm']
 ];
 function bindAudio(){
-  const unlockOnce=()=>{ Snd.unlock(); document.removeEventListener('pointerdown', unlockOnce, true); };
-  document.addEventListener('pointerdown', unlockOnce, true);
+  // Start audio on the first REAL gesture. pointerdown alone doesn't satisfy
+  // media-autoplay on some Android browsers, so listen across gesture types and
+  // keep retrying until the track genuinely plays (then stop listening).
+  const gestures=['pointerdown','click','touchend','keydown'];
+  function stopKick(){ gestures.forEach(ev=>document.removeEventListener(ev, kick, true)); }
+  function kick(){
+    Snd.unlock().then(ok=>{ if(ok || Snd.musicMissing || !(state.settings.sound && state.settings.music)) stopKick(); });
+  }
+  gestures.forEach(ev=>document.addEventListener(ev, kick, true));
   document.addEventListener('click', e=>{
     const el=e.target.closest('[data-snd], button, .check-row, .food-item, .mm-item, .wo-ex, .ach');
     if(!el) return;
