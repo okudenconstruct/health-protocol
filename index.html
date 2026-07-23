@@ -611,7 +611,8 @@ input, select { font-family: inherit; }
     <h1><span class="dot"></span> Health Protocol</h1>
     <div class="right">
       <div class="sync-pill local" id="syncPill"><span class="s-dot"></span><span id="syncText">local</span></div>
-      <button class="icon-btn" id="btnSettings" title="Settings">⚙</button>
+      <button class="icon-btn" id="btnSound" data-snd="none" title="Sound">🔊</button>
+      <button class="icon-btn" id="btnSettings" data-snd="open" title="Settings">⚙</button>
     </div>
   </div>
 
@@ -791,6 +792,12 @@ input, select { font-family: inherit; }
       <div class="set-row"><div><div class="sr-lab">Sat fat cap</div><div class="sr-sub">grams/day (warning)</div></div><input type="number" id="setSatCap" /></div>
       <div class="set-row"><div><div class="sr-lab">Height</div><div class="sr-sub">inches (for body fat calc)</div></div><input type="number" id="setHeight" /></div>
       <div class="set-row"><div><div class="sr-lab">Lean mass goal</div><div class="sr-sub">optional, lbs</div></div><input type="number" id="setLeanGoal" /></div>
+      <div class="set-row"><div><div class="sr-lab">Sound effects</div><div class="sr-sub">menu blips &amp; celebration cues</div></div>
+        <input type="checkbox" id="setSound" style="width:auto" /></div>
+      <div class="set-row"><div><div class="sr-lab">Background music</div><div class="sr-sub" id="musicHint">looping track</div></div>
+        <input type="checkbox" id="setMusic" style="width:auto" /></div>
+      <div class="set-row"><div><div class="sr-lab">Volume</div><div class="sr-sub">master level</div></div>
+        <input type="range" id="setVol" min="0" max="100" step="5" style="width:120px" /></div>
       <div style="margin-top:1rem">
         <div class="card-title" style="margin-bottom:0.5rem">Cloud Sync (Firebase)</div>
         <p class="muted" style="font-size:0.78rem" id="syncStatus"></p>
@@ -1456,7 +1463,8 @@ const ROUTINES = [
 
 /* ---------- STATE ---------- */
 const DEFAULT_STATE = {
-  settings: { rsTarget:20, rsGoal:40, rsBaseline:18, fiberTarget:35, satCap:15, height:72, leanGoal:null, rampLevelStart:null },
+  settings: { rsTarget:20, rsGoal:40, rsBaseline:18, fiberTarget:35, satCap:15, height:72, leanGoal:null, rampLevelStart:null,
+              sound:true, music:false, vol:0.6 },
   dailyLogs: {},      // date -> { dayType, meals:{slot:[{id,foodId,servings}]}, weight, greenTea, coolingPrep }
   bodyComp: {},       // date -> { waist, neck }
   coachDismissed: {}, // target -> dateDismissed
@@ -1999,6 +2007,107 @@ function goalProgress(goal){
   return null;
 }
 /* ======================================================================
+   AUDIO — synthesized SFX (no files) + a music slot waiting for a track.
+   Voices are square/triangle blips with fast attack and short decay: the
+   same technique 90s menu SFX used, so the style is native rather than
+   imitated. All melodies here are original.
+   ====================================================================== */
+const SFX = {
+  tap:       [{f:900,  dur:0.04, vol:0.09}],
+  nav:       [{f:1200, dur:0.035,vol:0.08, type:'triangle'}],
+  confirm:   [{f:660,  dur:0.05, vol:0.13}, {f:990,  dur:0.07, vol:0.13, delay:0.045}],
+  cancel:    [{f:480,  dur:0.06, vol:0.11}, {f:320,  dur:0.08, vol:0.11, delay:0.05}],
+  add:       [{f:700,  dur:0.04, vol:0.12}, {f:1050, dur:0.055,vol:0.12, delay:0.038}],
+  remove:    [{f:520,  f2:260,   dur:0.10, vol:0.10}],
+  step:      [{f:820,  dur:0.03, vol:0.07}],
+  toggleOn:  [{f:740,  dur:0.045,vol:0.11}, {f:1110, dur:0.06, vol:0.11, delay:0.04}],
+  toggleOff: [{f:620,  dur:0.055,vol:0.09}, {f:415,  dur:0.07, vol:0.09, delay:0.04}],
+  open:      [{f:420,  f2:900,   dur:0.11, vol:0.09, type:'triangle'}],
+  close:     [{f:900,  f2:420,   dur:0.11, vol:0.08, type:'triangle'}],
+  save:      [{f:880,  dur:0.05, vol:0.11}, {f:1170, dur:0.05, vol:0.11, delay:0.05}, {f:1400, dur:0.10, vol:0.11, delay:0.10}],
+  error:     [{f:196,  dur:0.14, vol:0.13, type:'sawtooth'}, {f:147, dur:0.18, vol:0.12, type:'sawtooth', delay:0.08}],
+  xp:        [{f:1320, dur:0.045,vol:0.09, type:'triangle'}],
+  hit:       [{f:880,  dur:0.05, vol:0.12}, {f:1320, dur:0.08, vol:0.12, delay:0.045}],
+  chime:     [{f:784,  dur:0.07, vol:0.13}, {f:1047, dur:0.07, vol:0.13, delay:0.06}, {f:1318, dur:0.17, vol:0.14, delay:0.12}],
+  fanfare:   [{f:523,  dur:0.09, vol:0.14}, {f:659,  dur:0.09, vol:0.14, delay:0.075},
+              {f:784,  dur:0.09, vol:0.14, delay:0.15}, {f:1047, dur:0.30, vol:0.16, delay:0.225},
+              {f:1318, dur:0.32, vol:0.11, delay:0.28, type:'triangle'}]
+};
+const Snd = {
+  ctx:null, master:null, sfxBus:null, musicEl:null, musicMissing:false, last:{},
+  MUSIC_SRC: 'music.mp3',      // drop a seamless loop here; the toggle picks it up
+  init(){
+    if(this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    this.ctx = new AC();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = state.settings.vol!=null ? state.settings.vol : 0.6;
+    this.master.connect(this.ctx.destination);
+    this.sfxBus = this.ctx.createGain();
+    this.sfxBus.connect(this.master);
+  },
+  /* Browsers keep audio suspended until a real gesture — unlock on first touch. */
+  unlock(){
+    Snd.init();
+    if(Snd.ctx && Snd.ctx.state==='suspended') Snd.ctx.resume();
+    if(state.settings.sound && state.settings.music) Snd.musicStart();
+  },
+  setVolume(v){ if(this.master) this.master.gain.value=v; if(this.musicEl) this.musicEl.volume=v*0.5; },
+  tone(o){
+    const c=this.ctx, t0=c.currentTime+(o.delay||0), dur=o.dur||0.08;
+    const osc=c.createOscillator(), g=c.createGain();
+    osc.type=o.type||'square';
+    osc.frequency.setValueAtTime(o.f, t0);
+    if(o.f2) osc.frequency.exponentialRampToValueAtTime(Math.max(1,o.f2), t0+dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(o.vol!=null?o.vol:0.15, t0+0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    osc.connect(g); g.connect(this.sfxBus);
+    osc.start(t0); osc.stop(t0+dur+0.03);
+  },
+  play(name){
+    if(!state.settings.sound) return;
+    this.init(); if(!this.ctx) return;
+    if(this.ctx.state==='suspended') this.ctx.resume();
+    const now=performance.now();
+    if(this.last[name] && now-this.last[name] < 45) return;   // collapse rapid repeats
+    this.last[name]=now;
+    (SFX[name]||SFX.tap).forEach(v=>this.tone(v));
+  },
+  musicStart(){
+    if(!(state.settings.sound && state.settings.music) || this.musicMissing) return;
+    if(!this.musicEl){
+      this.musicEl=new Audio(this.MUSIC_SRC);
+      this.musicEl.loop=true;
+      this.musicEl.volume=(state.settings.vol!=null?state.settings.vol:0.6)*0.5;
+      this.musicEl.addEventListener('error', ()=>{ this.musicMissing=true; });
+    }
+    this.musicEl.play().catch(()=>{});
+  },
+  musicStop(){ if(this.musicEl) this.musicEl.pause(); },
+  apply(){   // re-sync playback with the current settings
+    this.setVolume(state.settings.vol!=null?state.settings.vol:0.6);
+    if(state.settings.sound && state.settings.music) this.musicStart(); else this.musicStop();
+  }
+};
+function updateSoundBtn(){
+  const b=document.getElementById('btnSound'); if(!b) return;
+  const on=!!state.settings.sound;
+  b.textContent = on ? '🔊' : '🔇';
+  b.title = on ? 'Sound on — tap to mute' : 'Muted — tap for sound';
+  b.style.color = on ? 'var(--accent)' : 'var(--text-dim)';
+}
+function toggleSound(){
+  state.settings.sound=!state.settings.sound;
+  saveState(); updateSoundBtn(); Snd.apply();
+  if(state.settings.sound) Snd.play('confirm');
+  toast(state.settings.sound?'Sound on 🔊':'Muted 🔇');
+}
+/* Error feedback: buzz + message, so a rejected action is felt as well as read. */
+function toastErr(msg){ Snd.play('error'); toast(msg); }
+
+/* ======================================================================
    CELEBRATION ENGINE
    One escalating feedback path for every game event, so intensity always
    matches significance:
@@ -2119,8 +2228,10 @@ function epicCeremony(o){
 
 /* ---- dispatcher ---- */
 let epicBusyUntil=0;
+const TIER_SFX = { 1:'xp', 2:'hit', 3:'chime', 4:'fanfare' };
 function celebrate(tier, o={}){
   haptic(HAPTIC_PATTERN[tier]||8);
+  Snd.play(TIER_SFX[tier]||'tap');    // sound isn't motion — plays even when animation is reduced
   if(reducedMotion()){
     if(o.title) toast(`${o.icon||''} ${o.title}`.trim());
     else if(tier===1 && o.xp) toast(`+${o.xp} XP`);
@@ -2402,7 +2513,7 @@ function renderChecklist(){
     { key:'stack', text:'Pre-workout stack taken', sub:stackSub }
   ];
   document.getElementById('checklist').innerHTML = rows.map(r=>`
-    <div class="check-row ${log[r.key]?'done':''}" role="checkbox" aria-checked="${!!log[r.key]}" tabindex="0"
+    <div class="check-row ${log[r.key]?'done':''}" role="checkbox" aria-checked="${!!log[r.key]}" tabindex="0" data-snd="none"
       data-ck="${r.key}" onclick="toggleCheck('${r.key}')" onkeydown="checkKey(event,'${r.key}')">
       <div class="check-box" aria-hidden="true">✓</div>
       <div><div class="cr-text">${r.text}</div><div class="cr-sub">${r.sub}</div></div>
@@ -2410,7 +2521,7 @@ function renderChecklist(){
 }
 function checkKey(e,key){ if(e.key!=='Enter'&&e.key!==' ') return; e.preventDefault(); toggleCheck(key);
   const el=document.querySelector(`.check-row[data-ck="${key}"]`); if(el) el.focus(); }
-function toggleCheck(key){ const log=getLog(viewDate); log[key]=!log[key]; saveState(); renderAll(); }
+function toggleCheck(key){ const log=getLog(viewDate); log[key]=!log[key]; Snd.play(log[key]?'toggleOn':'toggleOff'); saveState(); renderAll(); }
 
 function renderWeekCounters(){
   const {fish,red} = weekFishRedMeat(viewDate);
@@ -2636,7 +2747,7 @@ function getShop(){
 function renderShop(){
   const sh=getShop();
   document.getElementById('shopStaples').innerHTML = SHOP_STAPLES.map(sec=>{
-    const rows = sec.items.map(it=>`<div class="check-row ${sh.staples[it]?'done':''}" role="checkbox" aria-checked="${!!sh.staples[it]}" tabindex="0" data-key="${it}"><div class="check-box" aria-hidden="true">✓</div><div class="cr-text">${it}</div></div>`).join('');
+    const rows = sec.items.map(it=>`<div class="check-row ${sh.staples[it]?'done':''}" role="checkbox" aria-checked="${!!sh.staples[it]}" tabindex="0" data-snd="none" data-key="${it}"><div class="check-box" aria-hidden="true">✓</div><div class="cr-text">${it}</div></div>`).join('');
     return `<div class="shop-section-title">${sec.section}</div>${rows}`;
   }).join('');
   document.getElementById('shopDayPills').innerHTML = PLAN_DAY_ORDER.map(d=>
@@ -2651,15 +2762,15 @@ function renderShop(){
     Object.keys(counts).forEach(id=>{ const f=FOOD_MAP[id]; if(!f)return; const sec=CAT_SECTION[f.cat]||'Other'; (bySec[sec]=bySec[sec]||[]).push({id,name:f.name,serv:f.serv,count:counts[id]}); });
     gen.innerHTML = GEN_SECTION_ORDER.filter(s=>bySec[s]).map(sec=>{
       const rows=bySec[sec].sort((a,b)=>a.name.localeCompare(b.name)).map(o=>
-        `<div class="check-row ${sh.gen[o.id]?'done':''}" role="checkbox" aria-checked="${!!sh.gen[o.id]}" tabindex="0" data-gid="${o.id}"><div class="check-box" aria-hidden="true">✓</div><div class="cr-text">${o.name} <span class="muted" style="font-size:0.72rem">· ${o.serv}${o.count>1?` ×${o.count}`:''}</span></div></div>`).join('');
+        `<div class="check-row ${sh.gen[o.id]?'done':''}" role="checkbox" aria-checked="${!!sh.gen[o.id]}" tabindex="0" data-snd="none" data-gid="${o.id}"><div class="check-box" aria-hidden="true">✓</div><div class="cr-text">${o.name} <span class="muted" style="font-size:0.72rem">· ${o.serv}${o.count>1?` ×${o.count}`:''}</span></div></div>`).join('');
       return `<div class="shop-section-title">${sec}</div>${rows}`;
     }).join('');
   }
   document.getElementById('shopAvoid').innerHTML = SHOP_AVOID.map(a=>`<div class="avoid-item"><span class="ax">✕</span><span>${a}</span></div>`).join('');
 }
-function toggleStaple(key){ const sh=getShop(); sh.staples[key]=!sh.staples[key]; saveState(); renderShop(); }
+function toggleStaple(key){ const sh=getShop(); sh.staples[key]=!sh.staples[key]; Snd.play(sh.staples[key]?'toggleOn':'toggleOff'); saveState(); renderShop(); }
 function toggleShopDay(d){ const sh=getShop(); const i=sh.days.indexOf(d); if(i>=0) sh.days.splice(i,1); else sh.days.push(d); saveState(); renderShop(); }
-function toggleGen(id){ const sh=getShop(); sh.gen[id]=!sh.gen[id]; saveState(); renderShop(); }
+function toggleGen(id){ const sh=getShop(); sh.gen[id]=!sh.gen[id]; Snd.play(sh.gen[id]?'toggleOn':'toggleOff'); saveState(); renderShop(); }
 function resetShopChecks(){ const sh=getShop(); sh.staples={}; sh.gen={}; saveState(); renderShop(); toast('Checks cleared'); }
 
 /* Compile the UNCHECKED items (i.e. what's still to buy) into shareable text. */
@@ -2812,7 +2923,7 @@ function openCustomFood(){
 }
 function saveCustomFood(){
   const name=document.getElementById('cfName').value.trim();
-  if(!name){ toast('Enter a name'); return; }
+  if(!name){ toastErr('Enter a name'); return; }
   const num=id=>{ const v=parseFloat(document.getElementById(id).value); return isNaN(v)?0:v; };
   const flags=[];
   if(document.getElementById('cfReflux').checked) flags.push('reflux');
@@ -3000,7 +3111,7 @@ function saveAmount(){
   if(!e){ closeAmount(); return; }
   const sg=servingGrams(FOOD_MAP[e.foodId]);
   const val=parseFloat(document.getElementById('amtVal').value);
-  if(isNaN(val)||val<=0){ toast('Enter an amount'); return; }
+  if(isNaN(val)||val<=0){ toastErr('Enter an amount'); return; }
   if(amtUnit==='serv' || !sg){ e.servings=val; delete e.grams; delete e.unit; }
   else { const g = amtUnit==='oz'? val*OZ_G : val; e.grams=g; e.unit=amtUnit; e.servings=g/sg; }
   saveState(); closeAmount(); renderAll();
@@ -3395,7 +3506,7 @@ function renderExerciseModal(){
 }
 function saveExercise(){
   const name=(document.getElementById('exName').value||'').trim();
-  if(!name){ toast('Name the exercise'); return; }
+  if(!name){ toastErr('Name the exercise'); return; }
   const date=viewDate; const wo=getWorkout(date); let entry;
   if(exDraft.type==='strength'){
     let sets;
@@ -3403,15 +3514,15 @@ function saveExercise(){
       const nS=parseInt(document.getElementById('qSets').value)||0;
       const nR=parseFloat(document.getElementById('qReps').value)||0;
       const nW=parseFloat(document.getElementById('qWeight').value)||0;
-      if(!nS||!nR){ toast('Enter sets and reps'); return; }
+      if(!nS||!nR){ toastErr('Enter sets and reps'); return; }
       sets=Array.from({length:nS},()=>({reps:nR, weight:nW}));
     } else {
       sets=exDraft.sets.map(s=>({reps:parseFloat(s.reps)||0, weight:parseFloat(s.weight)||0})).filter(s=>s.reps>0||s.weight>0);
-      if(!sets.length){ toast('Add at least one set'); return; }
+      if(!sets.length){ toastErr('Add at least one set'); return; }
     }
     entry={ name, type:'strength', sets };
   } else {
-    const mins=parseFloat(exDraft.mins)||0; if(!mins){ toast('Enter a duration'); return; }
+    const mins=parseFloat(exDraft.mins)||0; if(!mins){ toastErr('Enter a duration'); return; }
     entry={ name, type:'cardio', mins, dist:parseFloat(exDraft.dist)||0 };
   }
   if(exDraft.exId) entry.exId=exDraft.exId;
@@ -3453,6 +3564,12 @@ function openSettings(){
   document.getElementById('setSatCap').value=s.satCap;
   document.getElementById('setHeight').value=s.height;
   document.getElementById('setLeanGoal').value=s.leanGoal||'';
+  document.getElementById('setSound').checked=!!s.sound;
+  document.getElementById('setMusic').checked=!!s.music;
+  document.getElementById('setVol').value=Math.round((s.vol!=null?s.vol:0.6)*100);
+  document.getElementById('musicHint').textContent = Snd.musicMissing
+    ? `no ${Snd.MUSIC_SRC} in the app folder yet`
+    : 'looping track';
   const u = window.Cloud && window.Cloud.user;
   document.getElementById('syncStatus').innerHTML = u
     ? `Signed in as <b>${esc(u.email||u.name||'you')}</b> — syncing privately across your devices.
@@ -3466,8 +3583,13 @@ function saveSettings(){
   s.rsTarget=g('setRsTarget')||20; s.rsGoal=g('setRsGoal')||40; s.fiberTarget=g('setFiber')||35;
   s.satCap=g('setSatCap')||15; s.height=g('setHeight')||72;
   const lg=document.getElementById('setLeanGoal').value; s.leanGoal=lg?parseFloat(lg):null;
+  s.sound=document.getElementById('setSound').checked;
+  s.music=document.getElementById('setMusic').checked;
+  s.vol=(parseInt(document.getElementById('setVol').value,10)||60)/100;
   restampToday(); // today is scored against the new targets; past days keep their frozen ones
-  saveState(); document.getElementById('settingsModal').classList.remove('open'); renderAll(); toast('Settings saved');
+  saveState(); updateSoundBtn(); Snd.apply();
+  if(s.music && Snd.musicMissing) toast(`Music on — add ${Snd.MUSIC_SRC} to the app folder`);
+  document.getElementById('settingsModal').classList.remove('open'); renderAll(); toast('Settings saved');
 }
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -3535,15 +3657,50 @@ function bindModalA11y(){
     const was=(m.oldValue||'').split(/\s+/).includes('open');
     const is=el.classList.contains('open');
     if(!was && is){
+      Snd.play('open');
       if(!document.querySelector('.modal-backdrop.open:not(#'+el.id+')')) lastFocused=document.activeElement;
       setTimeout(()=>{ if(el.classList.contains('open') && !el.contains(document.activeElement)){
         const f=el.querySelector('input, select')||el.querySelector('button:not(.icon-btn)')||el.querySelector('button');
         if(f) f.focus(); } }, 120);
     } else if(was && !is){
+      Snd.play('close');
       if(!document.querySelector('.modal-backdrop.open') && lastFocused && document.contains(lastFocused)){ lastFocused.focus(); lastFocused=null; }
     }
   }));
   document.querySelectorAll('.modal-backdrop').forEach(el=>obs.observe(el,{attributes:true,attributeFilter:['class'],attributeOldValue:true}));
+}
+
+/* Give every tappable thing a voice. Matching by selector here beats sprinkling
+   data-snd through dozens of template strings; data-snd still wins when present,
+   and data-snd="none" defers to a handler that plays its own outcome sound. */
+const SND_RULES = [
+  ['#tabbar button',                                                                'nav'],
+  ['.modal-head .icon-btn',                                                         'close'],
+  ['.fi-add',                                                                       'add'],
+  ['.e-del, .fi-del, .mm-del, .set-del, .wm-cancel',                                'remove'],
+  ['.qty button',                                                                   'step'],
+  ['.wm-confirm',                                                                   'confirm'],
+  ['.btn-primary, #settingsSave, #cfSave, #exSave, #goalSave',                      'save'],
+  ['.day-pill, .cat-tabs button, .ref-tabs button, .gtype, .daytype-toggle button', 'nav'],
+  ['.mm-item, .routine-btn, .btn-add, .btn-tmpl, .nav-arrow',                       'confirm']
+];
+function bindAudio(){
+  const unlockOnce=()=>{ Snd.unlock(); document.removeEventListener('pointerdown', unlockOnce, true); };
+  document.addEventListener('pointerdown', unlockOnce, true);
+  document.addEventListener('click', e=>{
+    const el=e.target.closest('[data-snd], button, .check-row, .food-item, .mm-item, .wo-ex, .ach');
+    if(!el) return;
+    const explicit = el.dataset ? el.dataset.snd : null;
+    if(explicit==='none') return;
+    if(explicit){ Snd.play(explicit); return; }
+    for(const [sel,name] of SND_RULES){ if(el.matches(sel)){ Snd.play(name); return; } }
+    Snd.play('tap');
+  }, true);
+  // pause the loop when the app goes to the background; resume on return
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) Snd.musicStop();
+    else if(state.settings.sound && state.settings.music) Snd.musicStart();
+  });
 }
 
 /* ---------- INIT ---------- */
@@ -3567,15 +3724,30 @@ function bindEvents(){
   document.getElementById('settingsClose').onclick=()=>document.getElementById('settingsModal').classList.remove('open');
   document.getElementById('settingsModal').addEventListener('click', e=>{ if(e.target.id==='settingsModal') document.getElementById('settingsModal').classList.remove('open'); });
   document.getElementById('settingsSave').onclick=saveSettings;
+  // live audio preview — hear changes before saving
+  document.getElementById('setVol').addEventListener('input', e=>{
+    Snd.setVolume((parseInt(e.target.value,10)||0)/100); Snd.play('step');
+  });
+  document.getElementById('setSound').addEventListener('change', e=>{
+    const prev=state.settings.sound; state.settings.sound=e.target.checked;   // temp so preview plays
+    if(e.target.checked){ Snd.unlock(); Snd.play('confirm'); } state.settings.sound=prev;
+  });
+  document.getElementById('setMusic').addEventListener('change', e=>{
+    if(e.target.checked && document.getElementById('setSound').checked){ Snd.unlock();
+      const p=state.settings.sound, m=state.settings.music;
+      state.settings.sound=true; state.settings.music=true; Snd.musicStart();
+      state.settings.sound=p; state.settings.music=m;
+    } else Snd.musicStop();
+  });
   document.getElementById('exportData').onclick=exportData;
   document.getElementById('importData').onclick=()=>document.getElementById('importFile').click();
   document.getElementById('importFile').addEventListener('change', e=>{ handleImportFile(e.target.files[0]); e.target.value=''; });
   document.getElementById('weightSave').onclick=()=>{ const v=parseFloat(document.getElementById('weightInput').value);
-    if(!v){ toast('Enter a weight'); return; } getLog(currentDate).weight=v; saveState(); renderWeight(); renderBodyComp(); toast('Weight logged ✓'); };
+    if(!v){ toastErr('Enter a weight'); return; } getLog(currentDate).weight=v; saveState(); renderWeight(); renderBodyComp(); toast('Weight logged ✓'); };
   document.getElementById('bcSave').onclick=()=>{
     const w=parseFloat(document.getElementById('bcWaist').value), n=parseFloat(document.getElementById('bcNeck').value);
-    if(!w||!n){ toast('Enter waist and neck'); return; }
-    if(w<=n){ toast('Waist must be larger than neck'); return; }
+    if(!w||!n){ toastErr('Enter waist and neck'); return; }
+    if(w<=n){ toastErr('Waist must be larger than neck'); return; }
     if(!state.bodyComp) state.bodyComp={};
     state.bodyComp[currentDate]={waist:w,neck:n};
     document.getElementById('bcWaist').value=''; document.getElementById('bcNeck').value='';
@@ -3629,6 +3801,9 @@ function bindEvents(){
   window.addEventListener('focus', checkDayRollover);
   setInterval(checkDayRollover, 60000); // catches midnight passing while the app is open
   bindModalA11y();
+  bindAudio();
+  document.getElementById('btnSound').onclick=toggleSound;
+  updateSoundBtn();
 }
 
 function init(){
