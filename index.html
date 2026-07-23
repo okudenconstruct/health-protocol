@@ -165,14 +165,12 @@ input, select { font-family: inherit; }
 .rings-primary { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; width: 100%; }
 .rings-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; width: 100%; }
 .ring { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
-/* Every ring carries a soft halo in its own colour (--rc, set per ring). The
-   shadow wraps the whole circle, so the unfilled track glows too. Brighter
-   once the ring is at/over target. */
-.ring-svg { width: 100%; max-width: 92px; aspect-ratio: 1; filter: drop-shadow(0 0 3px var(--rc, transparent)); }
+/* Every ring carries a halo in its own colour (--rc, set per ring). The shadow
+   wraps the whole circle, so the unfilled track glows too. */
+.ring-svg { width: 100%; max-width: 92px; aspect-ratio: 1; filter: drop-shadow(0 0 8px var(--rc, transparent)); }
 .rings-primary .ring-svg { max-width: 132px; }
 .rings-primary .ring-label { font-size: 0.82rem; }
 .rings-primary .ring-target { font-size: 0.74rem; }
-.ring-done .ring-svg { filter: drop-shadow(0 0 8px var(--rc, var(--success))); }
 .ring-track { stroke: var(--bg-card-2); }
 .ring-prog { transition: stroke-dashoffset 0.5s ease, stroke 0.3s; stroke-linecap: round; }
 .ring-center { font-family: var(--mono); }
@@ -1916,11 +1914,11 @@ function levelUpBurst(level){
 /* ======================================================================
    RENDERING
    ====================================================================== */
-function ringSVG(value, target, color, label, unit, status, done){
+function ringSVG(value, target, color, label, unit, status){
   const r=42, cx=50, cy=50, circ=2*Math.PI*r;
   const pct = target>0 ? Math.min(value/target,1) : 0;
   const off = circ*(1-pct);
-  return `<div class="ring${done?' ring-done':''}" data-ring="${label}" style="--rc:${color}">
+  return `<div class="ring" data-ring="${label}" style="--rc:${color}">
     <svg class="ring-svg" viewBox="0 0 100 100">
       <circle class="ring-track" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="9"/>
       <circle class="ring-prog" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="9"
@@ -1949,16 +1947,14 @@ function renderRings(){
   const rsT = tg.rs!=null?tg.rs:state.settings.rsTarget;
   const fibT = tg.fiber!=null?tg.fiber:state.settings.fiberTarget;
   const satCap = tg.satCap!=null?tg.satCap:state.settings.satCap;
-  const calDone = calColor(t.cal,mt.cal)==='var(--success)';
-  const fatDone = fatColor(t.f,mt.fat)==='var(--success)';
   const primary = [
-    ringSVG(t.cal, mt.cal, 'var(--cal)', 'Calories', '', calColor(t.cal,mt.cal), calDone),
-    ringSVG(t.p, mt.protein, 'var(--protein)', 'Protein', 'g', moreBetterColor(t.p,mt.protein), t.p>=mt.protein),
+    ringSVG(t.cal, mt.cal, 'var(--cal)', 'Calories', '', calColor(t.cal,mt.cal)),
+    ringSVG(t.p, mt.protein, 'var(--protein)', 'Protein', 'g', moreBetterColor(t.p,mt.protein)),
   ].join('');
   const minis = [
-    ringSVG(t.rs, rsT, 'var(--rs)', 'RS', 'g', moreBetterColor(t.rs,rsT), t.rs>=rsT),
-    ringSVG(t.f, mt.fat, 'var(--fat)', 'Fat', 'g', fatColor(t.f,mt.fat), fatDone),
-    ringSVG(t.fib, fibT, 'var(--fiber)', 'Fiber', 'g', moreBetterColor(t.fib,fibT), t.fib>=fibT),
+    ringSVG(t.rs, rsT, 'var(--rs)', 'RS', 'g', moreBetterColor(t.rs,rsT)),
+    ringSVG(t.f, mt.fat, 'var(--fat)', 'Fat', 'g', fatColor(t.f,mt.fat)),
+    ringSVG(t.fib, fibT, 'var(--fiber)', 'Fiber', 'g', moreBetterColor(t.fib,fibT)),
   ].join('');
   document.getElementById('rings').innerHTML = `<div class="rings-primary">${primary}</div><div class="rings-mini">${minis}</div>`;
   /* Pulse a ring the moment it crosses 100% — only for the more-is-better trio,
@@ -2429,19 +2425,27 @@ function renderCatTabs(){
   document.getElementById('catTabs').innerHTML = CATS.map(c=>
     `<button class="${c.id===pickerCat?'active':''}" onclick="setPickerCat('${c.id}')">${c.name}</button>`).join('');
 }
-function setPickerCat(c){ pickerCat=c; renderCatTabs(); renderFoodList(document.getElementById('foodSearch').value); }
+/* Tapping a category is a BROWSE action — it clears any search so the two modes
+   never fight (a query always outranks the category filter, see renderFoodList). */
+function setPickerCat(c){
+  pickerCat=c;
+  const s=document.getElementById('foodSearch'); if(s) s.value='';
+  renderCatTabs(); renderFoodList('');
+}
 function renderFoodList(query){
   const q=(query||'').toLowerCase().trim();
   let list;
-  if(pickerCat==='quick'){
+  if(q){
+    /* A typed query ALWAYS searches the whole library. Previously it was scoped
+       to the active tab, so searching from Quick silently hid most foods. */
+    list = ALL_FOODS.filter(f=> !f.archived && f.name.toLowerCase().includes(q));
+  } else if(pickerCat==='quick'){
     list = frequentFoodIds().map(id=>FOOD_MAP[id]).filter(f=>f && !f.archived);
-    if(q) list = list.filter(f=>f.name.toLowerCase().includes(q));
   } else {
     list = ALL_FOODS.filter(f=>{
       if(f.archived) return false;
       if(pickerCat==='custom'){ if(!f.custom) return false; }
       else if(pickerCat!=='all' && f.cat!==pickerCat) return false;
-      if(q && !f.name.toLowerCase().includes(q)) return false;
       return true;
     });
   }
@@ -2462,7 +2466,9 @@ function renderFoodList(query){
     </div>`;
   }).join('');
   if(!rows){
-    rows = pickerCat==='quick'
+    rows = q
+      ? `<p class="muted" style="padding:1rem 0">No foods match “${esc(query.trim())}”. Tap “Create custom food” above to add it.</p>`
+      : pickerCat==='quick'
       ? `<p class="muted" style="padding:1rem 0">Your most-logged foods will appear here once you've logged a few days.</p>`
       : pickerCat==='custom'
       ? `<p class="muted" style="padding:1rem 0">No custom foods yet. Tap “Create custom food” above to add one.</p>`
@@ -3192,7 +3198,11 @@ function bindEvents(){
   document.getElementById('dtRest').onclick=()=>{ getLog(viewDate).dayType='rest'; saveState(); renderAll(); };
   document.getElementById('foodModalClose').onclick=closePicker;
   document.getElementById('foodModal').addEventListener('click', e=>{ if(e.target.id==='foodModal') closePicker(); });
-  document.getElementById('foodSearch').addEventListener('input', e=> renderFoodList(e.target.value));
+  document.getElementById('foodSearch').addEventListener('input', e=>{
+    // typing searches the whole library — move the tab highlight to All to show it
+    if(e.target.value.trim() && pickerCat!=='all'){ pickerCat='all'; renderCatTabs(); }
+    renderFoodList(e.target.value);
+  });
   document.getElementById('warnCancel').onclick=cancelWarning;
   document.getElementById('warnConfirm').onclick=confirmWarning;
   document.getElementById('warnModal').addEventListener('click', e=>{ if(e.target.id==='warnModal') cancelWarning(); });
