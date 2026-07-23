@@ -492,12 +492,14 @@ input, select { font-family: inherit; }
 .level-hero { text-align: center; background: linear-gradient(135deg, rgba(139,92,246,0.16), rgba(74,158,255,0.12)); border-color: rgba(139,92,246,0.4); }
 .lh-lvl { font-weight: 700; font-size: 1.6rem; letter-spacing: 0.05em; background: linear-gradient(135deg,#fff,#b794f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .lh-xpbar { height: 12px; border-radius: 999px; background: var(--bg-input); overflow: hidden; margin: 0.6rem 0 0.4rem; }
-.lh-xpbar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--protein), var(--accent)); }
+.lh-xpbar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--protein), var(--accent));
+  position: relative; overflow: hidden; transition: width 0.85s cubic-bezier(.2,.8,.3,1); }
 .lh-xptxt { font-family: var(--mono); font-size: 0.7rem; color: var(--text-muted); }
 .stat-line { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0; }
 .stat-name { width: 108px; font-size: 0.82rem; font-weight: 600; flex-shrink: 0; }
 .stat-bar { flex: 1; height: 9px; border-radius: 999px; background: var(--bg-input); overflow: hidden; }
-.stat-bar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--success)); }
+.stat-bar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--success));
+  transition: width 0.85s cubic-bezier(.2,.8,.3,1); }
 .stat-val { font-family: var(--mono); font-size: 0.78rem; width: 28px; text-align: right; }
 .stat-lock { flex: 1; font-size: 0.72rem; color: var(--text-dim); }
 .streak-big { font-size: 2rem; font-weight: 700; color: var(--warning); font-family: var(--mono); }
@@ -512,6 +514,26 @@ input, select { font-family: inherit; }
 .ach-d { font-size: 0.72rem; color: var(--text-muted); }
 .ach-date { font-family: var(--mono); font-size: 0.68rem; color: var(--success); }
 .ach-lock { font-size: 0.9rem; }
+/* locked achievements show how close they are */
+.ach-prog { height: 5px; border-radius: 999px; background: var(--bg-input); overflow: hidden; margin-top: 6px; max-width: 170px; }
+.ach-prog > span { display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--protein)); transition: width 0.85s cubic-bezier(.2,.8,.3,1); }
+.ach-pct { font-family: var(--mono); font-size: 0.66rem; color: var(--text-dim); margin-top: 2px; }
+/* earned ones catch a slow, staggered sheen so the shelf feels alive */
+.ach.earned { position: relative; overflow: hidden; }
+.ach.earned::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 38%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.075), transparent);
+  animation: achshine 5s ease-in-out infinite; }
+.ach.earned:nth-child(2n)::after { animation-delay: 1.6s; }
+.ach.earned:nth-child(3n)::after { animation-delay: 3.2s; }
+@keyframes achshine { 0% { transform: translateX(-160%); } 45%, 100% { transform: translateX(430%); } }
+/* the streak flame breathes while the streak is alive */
+@keyframes flamePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.78; } }
+.flame-live { animation: flamePulse 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce){
+  .ach.earned::after, .flame-live { animation: none; }
+  .lh-xpbar > span, .stat-bar > span, .ach-prog > span { transition: none; }
+}
 
 .goal-types { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.4rem; margin-bottom: 0.9rem; }
 .gtype { padding: 0.6rem 0.2rem; border-radius: var(--radius-sm); background: var(--bg-input); border: 1px solid var(--border-soft); color: var(--text-muted); font-size: 0.72rem; font-weight: 600; text-align: center; line-height: 1.3; }
@@ -1916,21 +1938,44 @@ function habitState(){
   const s=computeStreak();
   return { streak:s.current, best:s.best, next:HABIT_MILES.find(m=>s.current<m)||null, reached:HABIT_MILES.filter(m=>s.current>=m) };
 }
+/* `prog` (optional) drives the "how close am I" bar on locked achievements.
+   It receives a context computed ONCE per render so 13 cards don't each
+   re-scan all history. */
 const ACHIEVEMENTS=[
   {id:'first_log', name:'First Bite', icon:'🍽️', desc:'Log your first food', test:()=> Object.keys(state.dailyLogs).some(dayLogged)},
-  {id:'streak_7', name:'Week Warrior', icon:'🔥', desc:'7-day logging streak', test:()=> computeStreak().best>=7},
-  {id:'streak_30', name:'Iron Habit', icon:'⚙️', desc:'30-day logging streak', test:()=> computeStreak().best>=30},
-  {id:'rs_40', name:'Butyrate Boss', icon:'🦠', desc:'Hit 40g resistant starch in a day', test:()=> Object.keys(state.dailyLogs).some(d=>dayTotals(d).rs>=40)},
-  {id:'protein10', name:'Protein Beast', icon:'🥩', desc:'Hit protein target on 10 days', test:()=> Object.keys(state.dailyLogs).filter(d=>{const h=dayHits(d);return h&&h.protein;}).length>=10},
-  {id:'stack14', name:'Fully Saturated', icon:'💊', desc:'Take your stack on 14 days', test:()=> Object.keys(state.dailyLogs).filter(d=>state.dailyLogs[d].stack).length>=14},
+  {id:'streak_7', name:'Week Warrior', icon:'🔥', desc:'7-day logging streak', test:()=> computeStreak().best>=7,
+    prog:c=>({cur:Math.min(c.streakBest,7), max:7})},
+  {id:'streak_30', name:'Iron Habit', icon:'⚙️', desc:'30-day logging streak', test:()=> computeStreak().best>=30,
+    prog:c=>({cur:Math.min(c.streakBest,30), max:30})},
+  {id:'rs_40', name:'Butyrate Boss', icon:'🦠', desc:'Hit 40g resistant starch in a day', test:()=> Object.keys(state.dailyLogs).some(d=>dayTotals(d).rs>=40),
+    prog:c=>({cur:Math.min(Math.round(c.maxRs),40), max:40})},
+  {id:'protein10', name:'Protein Beast', icon:'🥩', desc:'Hit protein target on 10 days', test:()=> Object.keys(state.dailyLogs).filter(d=>{const h=dayHits(d);return h&&h.protein;}).length>=10,
+    prog:c=>({cur:Math.min(c.proteinDays,10), max:10})},
+  {id:'stack14', name:'Fully Saturated', icon:'💊', desc:'Take your stack on 14 days', test:()=> Object.keys(state.dailyLogs).filter(d=>state.dailyLogs[d].stack).length>=14,
+    prog:c=>({cur:Math.min(c.stackDays,14), max:14})},
   {id:'goal1', name:'Goal Crusher', icon:'🏆', desc:'Complete a primary goal', test:()=> !!(getGame().goals.primary && getGame().goals.primary.done)},
-  {id:'level5', name:'Ascendant', icon:'⭐', desc:'Reach level 5', test:()=> levelFromXp(totalXp()).level>=5},
+  {id:'level5', name:'Ascendant', icon:'⭐', desc:'Reach level 5', test:()=> levelFromXp(totalXp()).level>=5,
+    prog:c=>({cur:Math.min(c.level,5), max:5})},
   {id:'first_workout', name:'Iron Initiate', icon:'🏋️', desc:'Log your first workout', test:()=> Object.keys(state.workouts||{}).some(d=>(state.workouts[d]||[]).length)},
   {id:'first_pr', name:'Overloaded', icon:'📈', desc:'Set a strength PR', test:()=> workoutStats().prs>=1},
-  {id:'pr10', name:'Relentless', icon:'🦾', desc:'Set 10 PRs', test:()=> workoutStats().prs>=10},
+  {id:'pr10', name:'Relentless', icon:'🦾', desc:'Set 10 PRs', test:()=> workoutStats().prs>=10,
+    prog:c=>({cur:Math.min(c.prs,10), max:10})},
   {id:'perfect1', name:'Flawless', icon:'✨', desc:'Hit every macro target in one day', test:()=> Object.keys(state.dailyLogs).some(isPerfectDay)},
-  {id:'perfect10', name:'Immaculate', icon:'💎', desc:'10 perfect days', test:()=> Object.keys(state.dailyLogs).filter(isPerfectDay).length>=10},
+  {id:'perfect10', name:'Immaculate', icon:'💎', desc:'10 perfect days', test:()=> Object.keys(state.dailyLogs).filter(isPerfectDay).length>=10,
+    prog:c=>({cur:Math.min(c.perfectDays,10), max:10})},
 ];
+function achContext(){
+  const st=computeStreak(), ws=workoutStats(), days=Object.keys(state.dailyLogs);
+  return {
+    streakBest: st.best,
+    maxRs: days.reduce((m,d)=>Math.max(m, dayTotals(d).rs), 0),
+    proteinDays: days.filter(d=>{const h=dayHits(d); return h&&h.protein;}).length,
+    stackDays: days.filter(d=>state.dailyLogs[d].stack).length,
+    level: levelFromXp(totalXp()).level,
+    prs: ws.prs,
+    perfectDays: days.filter(isPerfectDay).length
+  };
+}
 function evaluateAchievements(){
   const g=getGame(); const newly=[];
   ACHIEVEMENTS.forEach(a=>{ if(!g.achievements[a.id] && a.test()){ g.achievements[a.id]=todayStr(); newly.push(a); } });
@@ -3014,7 +3059,7 @@ function flameHTML(streak){
   const filt = streak<1
     ? 'grayscale(0.85) opacity(0.5)'
     : `saturate(${(0.9+0.8*t).toFixed(2)})${streak>=30?' drop-shadow(0 0 6px rgba(245,158,11,0.65))':''}`;
-  return `<span style="display:inline-block;transform:scale(${scale});transform-origin:center bottom;filter:${filt}">🔥</span>`;
+  return `<span class="${streak>=1?'flame-live':''}" style="display:inline-block;transform:scale(${scale});transform-origin:center bottom;filter:${filt}">🔥</span>`;
 }
 function fmtNum(n){ return n==null?'—':(Math.round(n*10)/10).toString(); }
 function goalTitle(goal){
@@ -3063,17 +3108,42 @@ function maybeGoalWall(){
     openGoalModal('primary', true);
   }
 }
+/* Tween a number in place (used for the XP total so it rolls rather than snaps). */
+function countUpTo(el, from, to, dur){
+  if(!el) return;
+  if(reducedMotion() || from===to){ el.textContent=to; return; }
+  const t0=performance.now(); dur=dur||850;
+  const step=now=>{
+    const p=Math.min(1,(now-t0)/dur);
+    el.textContent=Math.round(from+(to-from)*(1-Math.pow(1-p,3)));   // easeOutCubic
+    if(p<1) requestAnimationFrame(step); else el.textContent=to;
+  };
+  requestAnimationFrame(step);
+}
+let lastShownXp = null;
 function renderLevel(){
   const el=document.getElementById('levelContent'); if(!el) return;
+  checkGameEvents();   // the shelf must be current the moment you look at it
   const g=getGame(); const xp=totalXp(); const lv=levelFromXp(xp); const stats=computeStats(); const hs=habitState();
-  const ach=ACHIEVEMENTS.map(a=>{ const e=g.achievements[a.id];
-    return `<div class="ach ${e?'earned':''}"><div class="ach-ic">${a.icon}</div><div class="ach-main"><div class="ach-n">${a.name}</div><div class="ach-d">${a.desc}</div></div>${e?`<div class="ach-date">${e.slice(5)}</div>`:'<div class="ach-lock">🔒</div>'}</div>`; }).join('');
-  const statLine=(name,val,locked)=> `<div class="stat-line"><div class="stat-name">${name}</div>${locked?'<div class="stat-lock">🔒 workouts (Phase 2)</div>':`<div class="stat-bar"><span style="width:${val}%"></span></div><div class="stat-val">${val}</div>`}</div>`;
+  const ctx=achContext();
+  const ach=ACHIEVEMENTS.map(a=>{
+    const e=g.achievements[a.id];
+    let bar='';
+    if(!e && a.prog){
+      const p=a.prog(ctx);
+      const pct=p.max? Math.max(0,Math.min(100, p.cur/p.max*100)) : 0;
+      bar=`<div class="ach-prog"><span data-w="${pct.toFixed(0)}" style="width:0%"></span></div>
+           <div class="ach-pct">${p.cur} / ${p.max}</div>`;
+    }
+    return `<div class="ach ${e?'earned':''}"><div class="ach-ic">${a.icon}</div>
+      <div class="ach-main"><div class="ach-n">${a.name}</div><div class="ach-d">${a.desc}</div>${bar}</div>
+      ${e?`<div class="ach-date">${e.slice(5)}</div>`:'<div class="ach-lock">🔒</div>'}</div>`; }).join('');
+  const statLine=(name,val,locked)=> `<div class="stat-line"><div class="stat-name">${name}</div>${locked?'<div class="stat-lock">🔒 log a workout</div>':`<div class="stat-bar"><span data-w="${val}" style="width:0%"></span></div><div class="stat-val">${val}</div>`}</div>`;
   el.innerHTML=`
     <div class="card level-hero">
       <div class="lh-lvl">LEVEL ${lv.level}</div>
-      <div class="lh-xpbar"><span style="width:${(lv.pct*100).toFixed(0)}%"></span></div>
-      <div class="lh-xptxt">${lv.into} / ${lv.need} XP → LV ${lv.level+1} · ${xp} total XP</div>
+      <div class="lh-xpbar"><span data-w="${(lv.pct*100).toFixed(0)}" style="width:0%"></span></div>
+      <div class="lh-xptxt">${lv.into} / ${lv.need} XP → LV ${lv.level+1} · <span id="lhTotalXp">${xp}</span> total XP</div>
     </div>
     <div class="card sp-protein"><div class="card-title">Stats</div>
       ${statLine('💪 Strength', stats.strength||0, stats.strength==null)}
@@ -3086,6 +3156,11 @@ function renderLevel(){
       <div class="muted" style="font-size:0.8rem">Best: ${hs.best} · ${hs.next?`next reward at ${hs.next} days`:'all milestones hit'}</div>
     </div>
     <div class="card sp-rs"><div class="card-title">Achievements <span class="tac" style="cursor:default">${Object.keys(g.achievements).length}/${ACHIEVEMENTS.length}</span></div>${ach}</div>`;
+  /* Bars are rendered at 0 and driven to their real width on the next frame, so
+     the CSS transition actually runs on freshly-inserted nodes. */
+  requestAnimationFrame(()=>{ el.querySelectorAll('[data-w]').forEach(s=>{ s.style.width=s.dataset.w+'%'; }); });
+  countUpTo(el.querySelector('#lhTotalXp'), lastShownXp==null?xp:lastShownXp, xp);
+  lastShownXp=xp;
 }
 
 /* goal modal */
