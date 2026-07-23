@@ -417,15 +417,64 @@ input, select { font-family: inherit; }
   animation: xpshine 2.8s ease-in-out infinite; }
 @keyframes xpshine { 0% { transform: translateX(-120%); } 55%, 100% { transform: translateX(320%); } }
 @media (prefers-reduced-motion: reduce){ .gc-xpbar > span::after, .lh-xpbar > span::after { animation: none; display: none; } }
-/* Level-up burst — a brief centered flare on level gain */
-.levelburst { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; pointer-events: none; }
-.levelburst .lb-core { font-family: var(--font); font-weight: 700; font-size: 2.3rem; letter-spacing: 0.04em;
+/* ===== CELEBRATION LAYERS =====
+   All overlays are pointer-events:none and self-removing — a ceremony must
+   never block the next tap. z-order: fx canvas 400 > epic 300 > card 310. */
+#fxCanvas { position: fixed; inset: 0; z-index: 400; pointer-events: none; }
+
+/* L1 — floating "+N XP" */
+.xpfloat { position: fixed; z-index: 320; pointer-events: none; font-family: var(--mono); font-weight: 700;
+  font-size: 1.05rem; color: var(--success); text-shadow: 0 0 12px rgba(34,197,94,0.65); white-space: nowrap;
+  animation: xpfloat 1.2s ease-out forwards; }
+@keyframes xpfloat {
+  0%   { opacity: 0; transform: translate(-50%, 8px) scale(0.8); }
+  18%  { opacity: 1; transform: translate(-50%, 0) scale(1.08); }
+  100% { opacity: 0; transform: translate(-50%, -46px) scale(1); }
+}
+
+/* L3 — ceremony card */
+.ceremony { position: fixed; left: 0; right: 0; top: 18%; z-index: 310; display: flex; justify-content: center;
+  pointer-events: none; padding: 0 1rem; }
+.ceremony .cer-card { display: flex; align-items: center; gap: 0.9rem; max-width: 380px; width: 100%;
+  background: linear-gradient(135deg, rgba(26,26,38,0.97), rgba(19,19,28,0.97));
+  border: 1px solid var(--protein); border-radius: 16px; padding: 0.9rem 1.1rem;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 30px rgba(139,92,246,0.28);
+  animation: cerin 2.6s cubic-bezier(.2,1,.3,1) forwards; }
+.ceremony .cer-ic { font-size: 2rem; line-height: 1; flex-shrink: 0; animation: cerpop 0.7s 0.1s ease both; }
+.ceremony .cer-main { flex: 1; min-width: 0; }
+.ceremony .cer-t { font-weight: 700; font-size: 1.02rem; letter-spacing: 0.01em; }
+.ceremony .cer-s { font-size: 0.78rem; color: var(--text-muted); }
+.ceremony .cer-xp { font-family: var(--mono); font-weight: 700; font-size: 1rem; color: var(--success);
+  text-shadow: 0 0 10px rgba(34,197,94,0.5); flex-shrink: 0; }
+@keyframes cerin {
+  0%   { opacity: 0; transform: translateY(-22px) scale(0.94); }
+  10%  { opacity: 1; transform: translateY(0) scale(1); }
+  85%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-14px) scale(0.98); }
+}
+@keyframes cerpop { 0% { transform: scale(0.2) rotate(-25deg); } 60% { transform: scale(1.25) rotate(6deg); } 100% { transform: scale(1) rotate(0); } }
+
+/* L4 — epic takeover */
+.levelburst { position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0.35rem; pointer-events: none; }
+.levelburst .lb-ic { font-size: 3.2rem; line-height: 1; animation: lbcore 1.7s cubic-bezier(.2,1,.3,1) forwards; }
+.levelburst .lb-core { font-family: var(--font); font-weight: 700; font-size: 2.3rem; letter-spacing: 0.04em; text-align: center;
   background: linear-gradient(135deg, #fff, #b794f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 0 18px rgba(139,92,246,0.7)); animation: lbcore 1.5s cubic-bezier(.2,1,.3,1) forwards; }
+.levelburst .lb-sub { font-size: 0.95rem; font-weight: 600; color: var(--text); text-align: center;
+  text-shadow: 0 0 12px rgba(0,0,0,0.8); animation: lbcore 1.9s cubic-bezier(.2,1,.3,1) forwards; }
+.levelburst .lb-xp { font-family: var(--mono); font-weight: 700; font-size: 1.1rem; color: var(--success);
+  text-shadow: 0 0 12px rgba(34,197,94,0.6); animation: lbcore 2s cubic-bezier(.2,1,.3,1) forwards; }
 .levelburst .lb-ring { position: absolute; width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--protein);
   animation: lbring 1.2s ease-out forwards; }
+.levelburst .lb-ring.r2 { border-color: var(--accent); animation-delay: 0.18s; }
 @keyframes lbcore { 0% { transform: scale(0.4); opacity: 0; } 22% { transform: scale(1.12); opacity: 1; } 72% { opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
-@keyframes lbring { 0% { transform: scale(0.3); opacity: 0.85; } 100% { transform: scale(4.2); opacity: 0; } }
+@keyframes lbring { 0% { transform: scale(0.3); opacity: 0.85; } 100% { transform: scale(4.6); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce){
+  .xpfloat, .ceremony .cer-card, .ceremony .cer-ic,
+  .levelburst .lb-ic, .levelburst .lb-core, .levelburst .lb-sub, .levelburst .lb-xp, .levelburst .lb-ring { animation: none; }
+}
 .gc-xptxt { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); white-space: nowrap; }
 .gc-goal { display: flex; align-items: center; gap: 0.7rem; cursor: pointer; }
 .gc-goal.empty { opacity: 0.9; }
@@ -1396,7 +1445,11 @@ const DEFAULT_STATE = {
     achievements: {},   // id -> ISO date earned
     goalBonusXp: 0,     // accumulated one-time bonus XP from completed goals/milestones
     seenLevel: 1,       // last level the user was shown (for level-up detection)
-    habitMilestones: {} // streak milestone -> date celebrated
+    habitMilestones: {},// streak milestone -> date celebrated
+    /* one-shot celebration ledgers — single values, so they stay tiny and sync-safe */
+    lastStreakDay: null,  // date the "streak alive" cheer last fired
+    lastPerfectDay: null, // date the Perfect Day ceremony last fired
+    lastFishWeek: null    // week-start date the omega-3 cheer last fired
   },
   workouts: {},         // date -> [ {id, name, type:'strength'|'cardio', sets:[{reps,weight}], mins, dist} ]
   mealCombos: {},       // slotId -> [ {id, name, items:[{foodId,servings,grams,unit}]} ]
@@ -1508,6 +1561,7 @@ function applyRemoteState(remote){
   localStorage.setItem(LS_KEY, JSON.stringify(state));
   invalidateCaches();
   rebuildFoods();
+  lastXpSeen = null;   // XP that arrived via sync wasn't earned just now — don't float it
   renderAll();
   refreshActiveView();
 }
@@ -1764,6 +1818,12 @@ function dayHits(date){
     weight: !!log.weight, greenTea: !!log.greenTea, stack: !!log.stack };
 }
 function dayLogged(date){ const h=dayHits(date); return !!(h && h.anyFood); }
+/* PERFECT DAY — every macro lever hit at once. The day's win condition. */
+const PERFECT_XP = 40;
+function isPerfectDay(date){
+  const h=dayHits(date);
+  return !!(h && h.anyFood && h.protein && h.rs && h.fiber && h.cal && h.sat);
+}
 function dayXp(date){
   const h=dayHits(date); if(!h) return 0;
   if(!h.anyFood){ let x=0; if(h.weight)x+=5; if(h.greenTea)x+=5; if(h.stack)x+=10; return x; }
@@ -1771,6 +1831,7 @@ function dayXp(date){
   if(h.protein) xp+=15; if(h.rs) xp+=15; if(h.fiber) xp+=10; if(h.cal) xp+=10; if(h.sat) xp+=5;
   if(h.weight) xp+=5; if(h.greenTea) xp+=5; if(h.stack) xp+=10;
   if(h.protein&&h.rs&&h.fiber) xp+=25;
+  if(isPerfectDay(date)) xp+=PERFECT_XP;   // deterministic, so it recomputes correctly forever
   return xp;
 }
 /* ----- workouts ----- */
@@ -1867,6 +1928,8 @@ const ACHIEVEMENTS=[
   {id:'first_workout', name:'Iron Initiate', icon:'🏋️', desc:'Log your first workout', test:()=> Object.keys(state.workouts||{}).some(d=>(state.workouts[d]||[]).length)},
   {id:'first_pr', name:'Overloaded', icon:'📈', desc:'Set a strength PR', test:()=> workoutStats().prs>=1},
   {id:'pr10', name:'Relentless', icon:'🦾', desc:'Set 10 PRs', test:()=> workoutStats().prs>=10},
+  {id:'perfect1', name:'Flawless', icon:'✨', desc:'Hit every macro target in one day', test:()=> Object.keys(state.dailyLogs).some(isPerfectDay)},
+  {id:'perfect10', name:'Immaculate', icon:'💎', desc:'10 perfect days', test:()=> Object.keys(state.dailyLogs).filter(isPerfectDay).length>=10},
 ];
 function evaluateAchievements(){
   const g=getGame(); const newly=[];
@@ -1890,25 +1953,210 @@ function goalProgress(goal){
   if(goal.type==='custom'){ const cur=goal.current||0, tg=goal.target||100; return {current:cur,target:tg,pct:Math.min(1,cur/tg),done:cur>=tg,unit:goal.unit||''}; }
   return null;
 }
-/* Fire XP/level/achievement/goal feedback + persist. Idempotent: guarded so it only toasts once. */
-function checkGameEvents(){
-  const g=getGame(); let changed=false;
-  habitState().reached.forEach(m=>{ if(!g.habitMilestones[m]){ g.habitMilestones[m]=todayStr(); g.goalBonusXp+=m*3; toast(`🔥 ${m}-day streak! +${m*3} XP`); changed=true; } });
-  const pg=g.goals.primary;
-  if(pg && !pg.done){ const pr=goalProgress(pg); if(pr && pr.done){ pg.done=true; pg.doneAt=todayStr(); g.goalBonusXp+=250; toast('🏆 Goal complete! +250 XP'); changed=true; } }
-  evaluateAchievements().forEach(a=>{ toast(`${a.icon} Achievement: ${a.name}!`); changed=true; });
-  const lvl=levelFromXp(totalXp()).level;
-  if(lvl!==g.seenLevel){ if(lvl>g.seenLevel){ toast(`⭐ LEVEL UP → ${lvl}!`); levelUpBurst(lvl); } g.seenLevel=lvl; changed=true; }
-  if(changed) saveState();
+/* ======================================================================
+   CELEBRATION ENGINE
+   One escalating feedback path for every game event, so intensity always
+   matches significance:
+     1 micro  — XP float + haptic blip          (any logged action)
+     2 small  — particle burst at the element   (a ring / meal target hit)
+     3 medium — ceremony card + confetti        (achievement, PR, milestone)
+     4 epic   — full-screen takeover            (level, goal, perfect day)
+   Guards: nothing fires while reviewing a past date, overlays never block
+   input, reduced-motion degrades to a toast, and each one-shot event is
+   ledgered in state so it fires exactly once across reloads and sync.
+   ====================================================================== */
+const HAPTIC_PATTERN = { 1: 8, 2: [12,30,12], 3: [18,40,18,40,18], 4: [25,55,25,55,70] };
+function reducedMotion(){ return matchMedia('(prefers-reduced-motion: reduce)').matches; }
+function haptic(p){ if(navigator.vibrate){ try { navigator.vibrate(p); } catch(e){} } }
+
+/* ---- particle field: one lazy full-screen canvas, no dependencies ---- */
+let fxCanvas=null, fxCtx=null, fxW=0, fxH=0, fxParts=[], fxRAF=0, fxPalette=null;
+function fxColors(){
+  if(!fxPalette){
+    const cs=getComputedStyle(document.documentElement);
+    fxPalette=['--cal','--protein','--rs','--fat','--fiber','--warning'].map(v=>cs.getPropertyValue(v).trim()).filter(Boolean);
+    if(!fxPalette.length) fxPalette=['#4a9eff','#8b5cf6','#f0a020','#ec6a5e','#22c55e'];
+  }
+  return fxPalette;
 }
-/* Brief centered flare on level gain (skipped under reduced-motion). */
-function levelUpBurst(level){
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+function fxSize(){
+  if(!fxCanvas) return;
+  const dpr=window.devicePixelRatio||1;
+  fxW=window.innerWidth; fxH=window.innerHeight;
+  fxCanvas.width=fxW*dpr; fxCanvas.height=fxH*dpr;
+  fxCanvas.style.width=fxW+'px'; fxCanvas.style.height=fxH+'px';
+  fxCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+function fxEnsure(){
+  if(fxCanvas) return;
+  fxCanvas=document.createElement('canvas'); fxCanvas.id='fxCanvas';
+  document.body.appendChild(fxCanvas);
+  fxCtx=fxCanvas.getContext('2d');
+  fxSize();
+  window.addEventListener('resize', fxSize);
+}
+function fxSpawn(x, y, n, o={}){
+  if(reducedMotion()) return;
+  fxEnsure();
+  const colors=o.colors||fxColors();
+  const power=o.power||6, spread=o.spread!=null?o.spread:Math.PI*2, dir=o.dir;
+  for(let i=0;i<n;i++){
+    const a = dir!=null ? dir + (Math.random()-0.5)*spread : Math.random()*Math.PI*2;
+    const sp = power*(0.35+Math.random()*0.9);
+    fxParts.push({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-(o.lift||0),
+      s:(o.size||4)*(0.6+Math.random()*0.9), c:colors[(Math.random()*colors.length)|0],
+      r:Math.random()*Math.PI, vr:(Math.random()-0.5)*0.35,
+      life:1, decay:o.decay||0.014, g:o.g!=null?o.g:0.18 });
+  }
+  if(fxParts.length>600) fxParts.splice(0, fxParts.length-600);   // hard cap
+  if(!fxRAF) fxRAF=requestAnimationFrame(fxTick);
+}
+function fxTick(){
+  fxCtx.clearRect(0,0,fxW,fxH);
+  for(let i=fxParts.length-1;i>=0;i--){
+    const p=fxParts[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.vx*=0.99; p.r+=p.vr; p.life-=p.decay;
+    if(p.life<=0 || p.y>fxH+50){ fxParts.splice(i,1); continue; }
+    fxCtx.save();
+    fxCtx.globalAlpha=Math.max(0,Math.min(1,p.life));
+    fxCtx.translate(p.x,p.y); fxCtx.rotate(p.r); fxCtx.fillStyle=p.c;
+    fxCtx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.62);
+    fxCtx.restore();
+  }
+  if(fxParts.length) fxRAF=requestAnimationFrame(fxTick);
+  else { fxRAF=0; fxCtx.clearRect(0,0,fxW,fxH); }
+}
+function fxAt(el, n, o){
+  const r=el&&el.getBoundingClientRect&&el.getBoundingClientRect();
+  fxSpawn(r? r.left+r.width/2 : window.innerWidth/2, r? r.top+r.height/2 : window.innerHeight/2, n, o);
+}
+function fxRain(bursts){
+  if(reducedMotion()) return;
+  fxEnsure();
+  for(let i=0;i<bursts;i++){
+    setTimeout(()=> fxSpawn(Math.random()*fxW, -20, 3,
+      {power:2, dir:Math.PI/2, spread:1.2, g:0.14, decay:0.006, size:5}), i*45);
+  }
+}
+
+/* ---- overlay pieces ---- */
+function xpFloat(text, anchor){
+  if(reducedMotion()) return;
+  const r=anchor&&anchor.getBoundingClientRect&&anchor.getBoundingClientRect();
+  const el=document.createElement('div');
+  el.className='xpfloat'; el.textContent=text;
+  el.style.left=(r? r.left+r.width/2 : window.innerWidth/2)+'px';
+  el.style.top =(r? r.top : window.innerHeight*0.35)+'px';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 1300);
+}
+function ceremonyCard(o){
+  const el=document.createElement('div');
+  el.className='ceremony';
+  el.innerHTML=`<div class="cer-card">
+    <div class="cer-ic">${o.icon||'🏅'}</div>
+    <div class="cer-main"><div class="cer-t">${esc(o.title||'')}</div>${o.sub?`<div class="cer-s">${esc(o.sub)}</div>`:''}</div>
+    ${o.xp?`<div class="cer-xp">+${o.xp}</div>`:''}</div>`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 2700);
+}
+function epicCeremony(o){
   const el=document.createElement('div');
   el.className='levelburst';
-  el.innerHTML=`<div class="lb-ring"></div><div class="lb-core">LEVEL ${level}</div>`;
+  el.innerHTML=`<div class="lb-ring"></div><div class="lb-ring r2"></div>
+    ${o.icon?`<div class="lb-ic">${o.icon}</div>`:''}
+    <div class="lb-core">${esc(o.title||'')}</div>
+    ${o.sub?`<div class="lb-sub">${esc(o.sub)}</div>`:''}
+    ${o.xp?`<div class="lb-xp">+${o.xp} XP</div>`:''}`;
   document.body.appendChild(el);
-  setTimeout(()=>el.remove(), 1500);
+  setTimeout(()=>el.remove(), 2400);
+}
+
+/* ---- dispatcher ---- */
+let epicBusyUntil=0;
+function celebrate(tier, o={}){
+  haptic(HAPTIC_PATTERN[tier]||8);
+  if(reducedMotion()){
+    if(o.title) toast(`${o.icon||''} ${o.title}`.trim());
+    else if(tier===1 && o.xp) toast(`+${o.xp} XP`);
+    return;
+  }
+  if(tier===4){                                   // two epics at once would collide
+    if(Date.now() < epicBusyUntil) tier=3;
+    else epicBusyUntil = Date.now()+2400;
+  }
+  if(tier===1){ if(o.xp>0) xpFloat(`+${o.xp} XP`, o.anchor); return; }
+  if(tier===2){
+    fxAt(o.anchor, 16, {power:5, decay:0.02});
+    if(o.title && !o.silent) toast(`${o.icon||''} ${o.title}`.trim());
+    return;
+  }
+  if(tier===3){
+    ceremonyCard(o);
+    fxSpawn(window.innerWidth/2, window.innerHeight*0.24, 42, {power:8, lift:2, decay:0.011});
+    return;
+  }
+  epicCeremony(o);
+  fxSpawn(window.innerWidth/2, window.innerHeight*0.45, 70, {power:11, lift:3, decay:0.008});
+  fxRain(14);
+}
+
+/* Fire XP/level/achievement/goal feedback + persist. Idempotent: each branch is
+   ledgered, so re-renders and sync can't double-celebrate. */
+let lastXpSeen = null;
+function checkGameEvents(){
+  const g=getGame(); let changed=false;
+  const onToday = viewDate===currentDate;
+
+  /* L1 — XP earned since the last pass. One hook covers every logging path. */
+  const xpNow = totalXp();
+  if(lastXpSeen!=null && xpNow>lastXpSeen && onToday){
+    celebrate(1, { xp: xpNow-lastXpSeen, anchor: document.querySelector('.gc-xpbar') });
+  }
+
+  /* streak milestones */
+  habitState().reached.forEach(m=>{ if(!g.habitMilestones[m]){ g.habitMilestones[m]=todayStr(); g.goalBonusXp+=m*3;
+    celebrate(3,{icon:'🔥', title:`${m}-day streak!`, sub:'Consistency compounds.', xp:m*3}); changed=true; } });
+
+  /* streak extended — the first log of the day */
+  if(onToday && dayLogged(currentDate) && g.lastStreakDay!==currentDate){
+    g.lastStreakDay=currentDate; changed=true;
+    const s=computeStreak().current;
+    if(s>1) celebrate(2,{icon:'🔥', title:`Day ${s} — streak alive`, anchor:document.querySelector('.gc-habit')});
+  }
+
+  /* primary goal complete */
+  const pg=g.goals.primary;
+  if(pg && !pg.done){ const pr=goalProgress(pg); if(pr && pr.done){ pg.done=true; pg.doneAt=todayStr(); g.goalBonusXp+=250;
+    celebrate(4,{icon:'🏆', title:'GOAL COMPLETE', sub:goalTitle(pg), xp:250}); changed=true; } }
+
+  /* achievements */
+  evaluateAchievements().forEach(a=>{ celebrate(3,{icon:a.icon, title:a.name, sub:a.desc}); changed=true; });
+
+  /* perfect day — the day's win condition */
+  if(onToday && isPerfectDay(currentDate) && g.lastPerfectDay!==currentDate){
+    g.lastPerfectDay=currentDate; changed=true;
+    celebrate(4,{icon:'✨', title:'PERFECT DAY', sub:'Every macro target hit.', xp:PERFECT_XP});
+  }
+
+  /* weekly omega-3 target */
+  if(onToday){
+    const wk=weekStart(currentDate);
+    if(weekFishRedMeat(currentDate).fish>=3 && g.lastFishWeek!==wk){
+      g.lastFishWeek=wk; changed=true;
+      celebrate(3,{icon:'🐟', title:'Omega-3 target met', sub:'3 fish meals this week.'});
+    }
+  }
+
+  /* level up — recomputed after the bonuses above so it catches them */
+  const finalXp = totalXp();
+  const lvl=levelFromXp(finalXp).level;
+  if(lvl!==g.seenLevel){
+    if(lvl>g.seenLevel) celebrate(4,{icon:'⭐', title:`LEVEL ${lvl}`, sub:'New rank reached.'});
+    g.seenLevel=lvl; changed=true;
+  }
+  lastXpSeen = finalXp;   // bonus XP is reported by its own ceremony, not re-floated
+  if(changed) saveState();
 }
 
 /* ======================================================================
@@ -1957,16 +2205,24 @@ function renderRings(){
     ringSVG(t.fib, fibT, 'var(--fiber)', 'Fiber', 'g', moreBetterColor(t.fib,fibT)),
   ].join('');
   document.getElementById('rings').innerHTML = `<div class="rings-primary">${primary}</div><div class="rings-mini">${minis}</div>`;
-  /* Pulse a ring the moment it crosses 100% — only for the more-is-better trio,
-     and only on a genuine transition (not when merely browsing to a finished day). */
-  const doneNow = { Protein: t.p>=mt.protein, RS: t.rs>=rsT, Fiber: t.fib>=fibT };
+  /* Pulse + burst the moment any ring reaches its target — on a genuine
+     transition only, and never while reviewing a past day. */
+  const doneNow = {
+    Calories: calColor(t.cal,mt.cal)==='var(--success)',
+    Protein: t.p>=mt.protein,
+    RS: t.rs>=rsT,
+    Fat: fatColor(t.f,mt.fat)==='var(--success)',
+    Fiber: t.fib>=fibT
+  };
   if(ringCelebrate.date===viewDate){
-    Object.keys(doneNow).forEach(k=>{
-      if(doneNow[k] && !ringCelebrate.done[k]){
-        const el=document.querySelector(`#rings .ring[data-ring="${k}"]`);
-        if(el) el.classList.add('pop');
-      }
-    });
+    if(viewDate===currentDate){
+      Object.keys(doneNow).forEach(k=>{
+        if(doneNow[k] && !ringCelebrate.done[k]){
+          const el=document.querySelector(`#rings .ring[data-ring="${k}"]`);
+          if(el){ el.classList.add('pop'); celebrate(2,{anchor:el, silent:true}); }
+        }
+      });
+    }
     ringCelebrate.done = doneNow;
   } else {
     ringCelebrate = { date: viewDate, done: doneNow };
@@ -2061,6 +2317,29 @@ function renderSlots(){
   const addFlex = flexEntries===0 ? `<button class="btn-add" style="width:100%" onclick="openPicker('flex')">+ Add a flexible meal</button>` : '';
   document.getElementById('slots').innerHTML = html + addFlex;
 }
+/* Each meal slot carries its own RS/protein sub-target — celebrate hitting it,
+   so one daily goal becomes six smaller, more frequent wins. */
+let slotCelebrate={date:null,done:{}};
+function checkSlotGoals(){
+  if(viewDate!==currentDate) return;
+  const dt=peekLog(currentDate).dayType||'training';
+  const doneNow={};
+  SLOTS.forEach(s=>{
+    if(!s.rs && !s.protein) return;                       // untargeted slots can't "complete"
+    const t=slotTotals(currentDate, s.id);
+    doneNow[s.id] = (!s.rs || t.rs>=s.rs) && (!s.protein || t.p>=s.protein);
+  });
+  if(slotCelebrate.date===currentDate){
+    Object.keys(doneNow).forEach(id=>{
+      if(doneNow[id] && !slotCelebrate.done[id]){
+        const s=SLOTS.find(x=>x.id===id);
+        const el=document.querySelector(`#slot-${id} .slot-stats`) || document.querySelector(`#slot-${id}`);
+        celebrate(2,{icon:'✓', title:`${slotDisplay(s,dt).name} complete`, anchor:el});
+      }
+    });
+  }
+  slotCelebrate={date:currentDate, done:doneNow};
+}
 function toggleSlot(id){
   if(collapsedSlots.has(id)) collapsedSlots.delete(id); else collapsedSlots.add(id);
   const el=document.getElementById('slot-'+id);
@@ -2140,7 +2419,8 @@ function renderRamp(){
     cp.innerHTML = '';
   }
 }
-function acceptRamp(nt){ state.settings.rsTarget=nt; state.settings.rampLevelStart=currentDate; restampToday(); saveState(); renderRamp(); renderRings(); toast(`RS target raised to ${nt}g 🚀`); }
+function acceptRamp(nt){ state.settings.rsTarget=nt; state.settings.rampLevelStart=currentDate; restampToday(); saveState(); renderRamp(); renderRings();
+  celebrate(3,{icon:'🚀', title:`RS rung → ${nt}g`, sub:'Ramp advanced — hold this level.'}); }
 function dismissRamp(){ state.coachDismissed[state.settings.rsTarget]=currentDate; saveState(); renderRamp(); toast('Holding current level'); }
 
 function renderWeight(){
@@ -2719,6 +2999,7 @@ function renderAll(){
   renderSlots();
   renderChecklist();
   renderWeekCounters();
+  checkSlotGoals();
   checkGameEvents();
   maybeGoalWall();
 }
@@ -3066,7 +3347,8 @@ function saveExercise(){
   document.getElementById('exModal').classList.remove('open');
   const pr = entry.type==='strength' && isSessionPR(name,date);
   renderGym(); renderAll();
-  if(pr) toast(`🏆 New PR on ${name}! +50 XP`); else toast('Logged 💪');
+  if(pr) celebrate(3,{icon:'🏆', title:'NEW PR', sub:`${name} — ${exerciseTopWeight(name)} lbs`, xp:50});
+  else toast('Logged 💪');
 }
 function deleteExercise(id){ const wo=peekWorkout(viewDate); const i=wo.findIndex(e=>e.id===id); if(i>=0){ wo.splice(i,1); saveState(); renderGym(); renderAll(); toast('Removed'); } }
 
