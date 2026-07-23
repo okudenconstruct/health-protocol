@@ -2072,7 +2072,8 @@ const Snd = {
     if(Snd.ctx && Snd.ctx.state==='suspended') Snd.ctx.resume();
     if(state.settings.sound && state.settings.music) Snd.musicStart();
   },
-  setVolume(v){ if(this.master) this.master.gain.value=v; if(this.musicEl) this.musicEl.volume=v*0.5; },
+  MUSIC_MIX: 0.1,   // background song sits at ~10% of SFX level (per Aaron)
+  setVolume(v){ if(this.master) this.master.gain.value=v; if(this.musicEl) this.musicEl.volume=v*this.MUSIC_MIX; },
   tone(o){
     const c=this.ctx, t0=c.currentTime+(o.delay||0), dur=o.dur||0.08;
     const osc=c.createOscillator(), g=c.createGain();
@@ -2107,7 +2108,7 @@ const Snd = {
     if(!this.musicEl){
       this.musicEl=new Audio(this.MUSIC_SRC);
       this.musicEl.loop=true;
-      this.musicEl.volume=(state.settings.vol!=null?state.settings.vol:0.6)*0.5;
+      this.musicEl.volume=(state.settings.vol!=null?state.settings.vol:0.6)*this.MUSIC_MIX;
       this.musicEl.addEventListener('error', ()=>{ this.musicMissing=true; });
     }
     this.musicEl.play().catch(()=>{});
