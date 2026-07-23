@@ -1,5 +1,5 @@
 // Steve's Health Protocol — service worker (offline shell)
-const CACHE = 'shp-v4';
+const CACHE = 'shp-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -7,7 +7,12 @@ const ASSETS = [
   './manifest.webmanifest',
   './icon.svg',
   './icon-180.png',
-  './icon-512.png'
+  './icon-512.png',
+  './sounds/tap.mp3', './sounds/nav.mp3', './sounds/confirm.mp3', './sounds/cancel.mp3',
+  './sounds/add.mp3', './sounds/remove.mp3', './sounds/step.mp3', './sounds/toggleOn.mp3',
+  './sounds/toggleOff.mp3', './sounds/open.mp3', './sounds/close.mp3', './sounds/save.mp3',
+  './sounds/error.mp3', './sounds/xp.mp3', './sounds/hit.mp3', './sounds/chime.mp3',
+  './sounds/fanfare.mp3', './sounds/music.mp3'
 ];
 
 self.addEventListener('install', (e) => {
