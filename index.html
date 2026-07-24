@@ -819,6 +819,7 @@ input, select { font-family: inherit; }
     <div style="padding:0 1rem 1.5rem; overflow-y:auto">
       <div class="cf-field"><label>Name</label><input id="cfName" type="text" placeholder="e.g. Quest bar" /></div>
       <div class="cf-field"><label>Serving</label><input id="cfServ" type="text" placeholder="e.g. 1 bar" /></div>
+      <div class="cf-field"><label>Serving weight (g) — optional</label><input id="cfGrams" type="number" inputmode="decimal" placeholder="e.g. 305 — enables oz/g logging" /></div>
       <div class="cf-grid">
         <div class="cf-field"><label>Calories</label><input id="cfCal" type="number" inputmode="decimal" /></div>
         <div class="cf-field"><label>Protein (g)</label><input id="cfP" type="number" inputmode="decimal" /></div>
@@ -1281,13 +1282,19 @@ const SERVING_GRAMS = {
   // intentionally left as servings-only (pour-by-volume): coffee, grapefruit_juice, popcorn_movie
 };
 const OZ_G = 28.3495;
-/* Returns grams for one serving of a food, or null if we can't determine a weight. */
+/* Returns grams for one serving of a food, or null if we can't determine a weight.
+   Order: explicit g field > manual SERVING_GRAMS map > grams in the serving text
+   ("1 bar (50g)", "305 g") > ounces in the serving text ("8 oz cooked"). The text
+   parsers are what let custom foods carry a weight without a code entry. */
 function servingGrams(food){
   if(!food) return null;
   if(food.g) return food.g;
   if(SERVING_GRAMS[food.id]) return SERVING_GRAMS[food.id];
-  const m = (food.serv||'').match(/([\d.]+)\s*oz/);
-  if(m) return parseFloat(m[1]) * OZ_G;
+  const serv = food.serv||'';
+  const gm = serv.match(/([\d.]+)\s*g(?:rams?)?\b/); // grams, e.g. "(50g)", "305 g", "305 grams"
+  if(gm) return parseFloat(gm[1]);
+  const om = serv.match(/([\d.]+)\s*oz/);            // ounces, e.g. "8 oz"
+  if(om) return parseFloat(om[1]) * OZ_G;
   return null;
 }
 function entryQty(food, e){
@@ -2970,7 +2977,7 @@ function renderFoodList(query){
 
 /* ---------- CUSTOM FOOD CREATOR ---------- */
 function openCustomFood(){
-  ['cfName','cfServ','cfCal','cfP','cfC','cfF','cfSat','cfFib','cfRs'].forEach(id=>document.getElementById(id).value='');
+  ['cfName','cfServ','cfGrams','cfCal','cfP','cfC','cfF','cfSat','cfFib','cfRs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('cfCat').value='other';
   ['cfReflux','cfStatin','cfSatflag','cfProcessed','cfFish','cfRed'].forEach(id=>document.getElementById(id).checked=false);
   document.getElementById('customModal').classList.add('open');
@@ -2989,6 +2996,8 @@ function saveCustomFood(){
     cat:document.getElementById('cfCat').value,
     serv:document.getElementById('cfServ').value.trim()||'1 serving',
     cal:num('cfCal'), p:num('cfP'), c:num('cfC'), f:num('cfF'), sat:num('cfSat'), fib:num('cfFib'), rs:num('cfRs') };
+  const grams=parseFloat(document.getElementById('cfGrams').value);
+  if(!isNaN(grams) && grams>0) food.g=grams;   // enables oz/g logging for this custom food
   if(flags.length) food.flags=flags;
   if(document.getElementById('cfFish').checked) food.fish=true;
   if(document.getElementById('cfRed').checked) food.redMeat=true;
