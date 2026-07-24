@@ -634,7 +634,7 @@ input, select { font-family: inherit; }
     <div id="goalCard"></div>
     <div id="nextAction"></div>
 
-    <div class="card sp-cal hero">
+    <div class="card sp-cal hero" id="macrosCard">
       <div class="card-title">Today's Macros <span class="tac" id="dayTypeLabel"></span></div>
       <div class="rings" id="rings"></div>
       <div class="satbar-wrap">
@@ -2242,7 +2242,9 @@ function fxTick(){
   if(fxParts.length) fxRAF=requestAnimationFrame(fxTick);
   else { fxRAF=0; fxCtx.clearRect(0,0,fxW,fxH); }
 }
-function fxAt(el, n, o){
+function resolveAnchor(a){ return typeof a==='string' ? document.querySelector(a) : a; }
+function fxAt(anchor, n, o){
+  const el=resolveAnchor(anchor);                 // string selectors resolve at fire time (never stale)
   const r=el&&el.getBoundingClientRect&&el.getBoundingClientRect();
   fxSpawn(r? r.left+r.width/2 : window.innerWidth/2, r? r.top+r.height/2 : window.innerHeight/2, n, o);
 }
@@ -2258,7 +2260,8 @@ function fxRain(bursts){
 /* ---- overlay pieces ---- */
 function xpFloat(text, anchor){
   if(reducedMotion()) return;
-  const r=anchor&&anchor.getBoundingClientRect&&anchor.getBoundingClientRect();
+  const anc=resolveAnchor(anchor);
+  const r=anc&&anc.getBoundingClientRect&&anc.getBoundingClientRect();
   const el=document.createElement('div');
   el.className='xpfloat'; el.textContent=text;
   el.style.left=(r? r.left+r.width/2 : window.innerWidth/2)+'px';
@@ -2288,10 +2291,31 @@ function epicCeremony(o){
   setTimeout(()=>el.remove(), 2400);
 }
 
+/* Bring the macro rings into view, then run cb once the scroll has settled — so
+   a ring/perfect-day celebration is never fired at an off-screen anchor. Skips
+   the scroll (short delay only) when the rings are already visible. */
+function reorientToRings(cb){
+  const today=document.getElementById('view-today');
+  if(today && !today.classList.contains('active')) switchView('today');
+  const rings=document.getElementById('rings');
+  const card=document.getElementById('macrosCard') || (rings && rings.closest('.card'));   // fall back to the rings' card
+  const r=card&&card.getBoundingClientRect&&card.getBoundingClientRect();
+  const inView = r && r.top>=0 && r.bottom<=window.innerHeight;
+  if(card && !inView && !reducedMotion()) card.scrollIntoView({behavior:'smooth', block:'center'});
+  else if(card && !inView) card.scrollIntoView({block:'center'});
+  setTimeout(cb, (inView||reducedMotion())?90:560);   // wait out the smooth scroll
+}
+
 /* ---- dispatcher ---- */
 let epicBusyUntil=0;
 const TIER_SFX = { 1:'xp', 2:'hit', 3:'chime', 4:'fanfare' };
 function celebrate(tier, o={}){
+  // focus:'rings' — scroll the rings on-screen first, then fire the whole
+  // celebration (sound + visual together) so it's actually seen.
+  if(o.focus==='rings' && !o._reoriented){
+    reorientToRings(()=> celebrate(tier, Object.assign({}, o, {_reoriented:true})));
+    return;
+  }
   haptic(HAPTIC_PATTERN[tier]||8);
   Snd.play(TIER_SFX[tier]||'tap');    // sound isn't motion — plays even when animation is reduced
   if(reducedMotion()){
@@ -2354,7 +2378,7 @@ function checkGameEvents(){
   /* perfect day — the day's win condition */
   if(onToday && isPerfectDay(currentDate) && g.lastPerfectDay!==currentDate){
     g.lastPerfectDay=currentDate; changed=true;
-    celebrate(4,{icon:'✨', title:'PERFECT DAY', sub:'Every macro target hit.', xp:PERFECT_XP});
+    celebrate(4,{icon:'✨', title:'PERFECT DAY', sub:'Every macro target hit.', xp:PERFECT_XP, focus:'rings'});
   }
 
   /* weekly omega-3 target */
@@ -2437,7 +2461,8 @@ function renderRings(){
       Object.keys(doneNow).forEach(k=>{
         if(doneNow[k] && !ringCelebrate.done[k]){
           const el=document.querySelector(`#rings .ring[data-ring="${k}"]`);
-          if(el){ el.classList.add('pop'); celebrate(2,{anchor:el, silent:true}); }
+          // selector anchor + focus:rings — scrolls the rings on-screen, then bursts on the ring
+          if(el){ el.classList.add('pop'); celebrate(2,{anchor:`#rings .ring[data-ring="${k}"]`, focus:'rings', silent:true}); }
         }
       });
     }
