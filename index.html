@@ -815,7 +815,7 @@ input, select { font-family: inherit; }
 <!-- CUSTOM FOOD CREATOR -->
 <div class="modal-backdrop" id="customModal">
   <div class="modal" role="dialog" aria-modal="true" aria-label="Create custom food">
-    <div class="modal-head"><h2>Create custom food</h2><button class="icon-btn" id="customClose">✕</button></div>
+    <div class="modal-head"><h2 id="customTitle">Create custom food</h2><button class="icon-btn" id="customClose">✕</button></div>
     <div style="padding:0 1rem 1.5rem; overflow-y:auto">
       <div class="cf-field"><label>Name</label><input id="cfName" type="text" placeholder="e.g. Quest bar" /></div>
       <div class="cf-field"><label>Serving</label><input id="cfServ" type="text" placeholder="e.g. 1 bar" /></div>
@@ -2977,7 +2977,7 @@ function renderFoodList(query){
   let rows = list.map(f=>{
     const rsv = f.rs>0? `<span class="rsv">RS ${f.rs}g</span> · `:'';
     const star = f.custom? '★ ' : '';
-    const del = f.custom? `<button class="fi-del" onclick="deleteCustomFood('${f.id}')">🗑</button>` : '';
+    const del = f.custom? `<button class="fi-del" onclick="editCustomFood('${f.id}')" title="Edit">✏️</button><button class="fi-del" onclick="deleteCustomFood('${f.id}')" title="Delete">🗑</button>` : '';
     const u = usualAmount(f.id);
     const usual = u ? `<span class="fi-usual">usually ${u.grams!=null ? (u.unit==='g'? Math.round(u.grams)+' g' : (Math.round(u.grams/OZ_G*10)/10)+' oz') : (Math.round((u.servings||1)*100)/100)+'×'}</span>` : '';
     return `<div class="food-item">
@@ -3002,13 +3002,39 @@ function renderFoodList(query){
   document.getElementById('foodList').innerHTML = rows;
 }
 
-/* ---------- CUSTOM FOOD CREATOR ---------- */
+/* ---------- CUSTOM FOOD CREATOR / EDITOR ---------- */
+let customEditId=null;   // non-null => editing an existing custom food in place
 function openCustomFood(){
+  customEditId=null;
   ['cfName','cfServ','cfGrams','cfCal','cfP','cfC','cfF','cfSat','cfFib','cfRs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('cfCat').value='other';
   ['cfReflux','cfStatin','cfSatflag','cfProcessed','cfFish','cfRed'].forEach(id=>document.getElementById(id).checked=false);
+  document.getElementById('customTitle').textContent='Create custom food';
+  document.getElementById('cfSave').textContent='Save & add to meal';
   document.getElementById('customModal').classList.add('open');
   setTimeout(()=>document.getElementById('cfName').focus(),100);
+}
+/* Open the editor pre-filled for an existing custom food — the only way to give
+   an already-created food a serving weight (and thus oz/g logging). */
+function editCustomFood(id){
+  const f=(state.customFoods||[]).find(x=>x.id===id); if(!f) return;
+  customEditId=id;
+  const set=(el,v)=>{ document.getElementById(el).value = v!=null?v:''; };
+  set('cfName', f.name); set('cfServ', f.serv==='1 serving'?'':f.serv);
+  set('cfGrams', f.g!=null?f.g:''); set('cfCal', f.cal); set('cfP', f.p);
+  set('cfC', f.c); set('cfF', f.f); set('cfSat', f.sat); set('cfFib', f.fib); set('cfRs', f.rs);
+  document.getElementById('cfCat').value=f.cat||'other';
+  const fl=f.flags||[];
+  document.getElementById('cfReflux').checked=fl.includes('reflux');
+  document.getElementById('cfStatin').checked=fl.includes('statin');
+  document.getElementById('cfSatflag').checked=fl.includes('satfat');
+  document.getElementById('cfProcessed').checked=fl.includes('processed');
+  document.getElementById('cfFish').checked=!!f.fish;
+  document.getElementById('cfRed').checked=!!f.redMeat;
+  document.getElementById('customTitle').textContent='Edit custom food';
+  document.getElementById('cfSave').textContent='Save changes';
+  document.getElementById('customModal').classList.add('open');
+  setTimeout(()=>document.getElementById('cfGrams').focus(),100);   // most-common edit reason
 }
 function saveCustomFood(){
   const name=document.getElementById('cfName').value.trim();
@@ -3019,23 +3045,29 @@ function saveCustomFood(){
   if(document.getElementById('cfStatin').checked) flags.push('statin');
   if(document.getElementById('cfSatflag').checked) flags.push('satfat');
   if(document.getElementById('cfProcessed').checked) flags.push('processed');
-  const food={ id:'custom_'+(state._seq++), custom:true, name,
-    cat:document.getElementById('cfCat').value,
-    serv:document.getElementById('cfServ').value.trim()||'1 serving',
-    cal:num('cfCal'), p:num('cfP'), c:num('cfC'), f:num('cfF'), sat:num('cfSat'), fib:num('cfFib'), rs:num('cfRs') };
+  const editing = customEditId && (state.customFoods||[]).find(x=>x.id===customEditId);
+  const food = editing || { id:'custom_'+(state._seq++), custom:true };
+  food.custom=true; food.name=name;
+  food.cat=document.getElementById('cfCat').value;
+  food.serv=document.getElementById('cfServ').value.trim()||'1 serving';
+  food.cal=num('cfCal'); food.p=num('cfP'); food.c=num('cfC'); food.f=num('cfF');
+  food.sat=num('cfSat'); food.fib=num('cfFib'); food.rs=num('cfRs');
   const grams=parseFloat(document.getElementById('cfGrams').value);
-  if(!isNaN(grams) && grams>0) food.g=grams;   // enables oz/g logging for this custom food
-  if(flags.length) food.flags=flags;
-  if(document.getElementById('cfFish').checked) food.fish=true;
-  if(document.getElementById('cfRed').checked) food.redMeat=true;
+  if(!isNaN(grams) && grams>0) food.g=grams; else delete food.g;   // grams -> oz/g logging
+  if(flags.length) food.flags=flags; else delete food.flags;
+  if(document.getElementById('cfFish').checked) food.fish=true; else delete food.fish;
+  if(document.getElementById('cfRed').checked) food.redMeat=true; else delete food.redMeat;
   if(!state.customFoods) state.customFoods=[];
-  state.customFoods.push(food);
-  rebuildFoods(); saveState();
+  if(!editing) state.customFoods.push(food);
+  rebuildFoods(); invalidateCaches(); saveState();
   document.getElementById('customModal').classList.remove('open');
-  if(pickerSlot){
+  if(editing){
+    toast(`Updated ${name}`); renderAll();
+  } else if(pickerSlot){
     if(food.flags && food.flags.length){ pendingAdd={slot:pickerSlot, foodId:food.id}; showWarning(food); }
     else { addFood(viewDate, pickerSlot, food.id); toast(`Added ${name}`); closePicker(); renderAll(); }
   } else { toast(`Saved ${name}`); }
+  customEditId=null;
   if(document.getElementById('foodModal').classList.contains('open')) renderFoodList(document.getElementById('foodSearch').value);
 }
 /* Deleting a food that appears in history would silently blank those days' macros
